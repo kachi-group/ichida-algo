@@ -185,21 +185,21 @@ int main(){
     readModel();
 
 
+    char str[10];
+    char fileName[100]; 
     for (int i=1;i<=52;i++){
-        char str[10];
-        char finalStr[100]; 
         if (i < 10) {
             sprintf(str, "0%d", i);
         } else {
             sprintf(str, "%d", i);
         }
-        strcpy(finalStr, "../tensors/");
-        strcat(finalStr, str);
-        strcat(finalStr, "out.txt");
+        strcpy(fileName, "../tensors/");
+        strcat(fileName, str);
+        strcat(fileName, "out.txt");
 
         // Read txt file
         Matrix* input=createMatrix(255,1);
-        readInput(input ,finalStr);
+        readInput(input ,fileName);
 
         // Inference process
         for (int j=0;j<6;j++){
