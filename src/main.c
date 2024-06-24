@@ -201,7 +201,7 @@ int main(){
         Matrix* input=createMatrix(255,1);
         readInput(input ,finalStr);
 
-        // Run model
+        // Inference process
         for (int j=0;j<6;j++){
             input=propagateForward(weight[j],input,biase[j]);
             ReLU(input);
