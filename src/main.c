@@ -133,22 +133,83 @@ int main(int argc, char* argv[]) {
     // TODO: find a way to load static weights and biases
     // Load model (The memory of those code should be initialize during compile time to enchance the speed)
     weight[0] = createMatrix(98, 225);
+    for (int i = 0; i < weight[0]->rows; i++) {
+        for (int j = 0; j < weight[0]->cols; j++) {
+            (weight[0]->data)[i][j] = w0[i][j];
+        }
+    }
+
     weight[1] = createMatrix(65, 98);
+    for (int i = 0; i < weight[1]->rows; i++) {
+        for (int j = 0; j < weight[1]->cols; j++) {
+            (weight[1]->data)[i][j] = w1[i][j];
+        }
+    }
     weight[2] = createMatrix(50, 65);
+    for (int i = 0; i < weight[2]->rows; i++) {
+        for (int j = 0; j < weight[2]->cols; j++) {
+            (weight[2]->data)[i][j] = w2[i][j];
+        }
+    }
     weight[3] = createMatrix(30, 50);
+    for (int i = 0; i < weight[3]->rows; i++) {
+        for (int j = 0; j < weight[3]->cols; j++) {
+            (weight[3]->data)[i][j] = w3[i][j];
+        }
+    }
     weight[4] = createMatrix(25, 30);
+    for (int i = 0; i < weight[4]->rows; i++) {
+        for (int j = 0; j < weight[4]->cols; j++) {
+            (weight[4]->data)[i][j] = w4[i][j];
+        }
+    }
     weight[5] = createMatrix(40, 25);
+    for (int i = 0; i < weight[5]->rows; i++) {
+        for (int j = 0; j < weight[5]->cols; j++) {
+            (weight[5]->data)[i][j] = w5[i][j];
+        }
+    }
     weight[6] = createMatrix(52, 40);
+    for (int i = 0; i < weight[6]->rows; i++) {
+        for (int j = 0; j < weight[6]->cols; j++) {
+            (weight[6]->data)[i][j] = w6[i][j];
+        }
+    }
 
     biase[0] = createMatrix(98, 1);
-    biase[1] = createMatrix(65, 1);
-    biase[2] = createMatrix(50, 1);
-    biase[3] = createMatrix(30, 1);
-    biase[4] = createMatrix(25, 1);
-    biase[5] = createMatrix(40, 1);
-    biase[6] = createMatrix(52, 1);
+    for (int i = 0; i < biase[0]->rows; i++) {
+        (biase[0]->data)[i][0] = b0[i][0];
+    }
 
-    readModel(argv[1]);
+    biase[1] = createMatrix(65, 1);
+    for (int i = 0; i < biase[1]->rows; i++) {
+        (biase[1]->data)[i][0] = b1[i][0];
+    }
+
+    biase[2] = createMatrix(50, 1);
+    for (int i = 0; i < biase[2]->rows; i++) {
+        (biase[2]->data)[i][0] = b2[i][0];
+    }
+
+    biase[3] = createMatrix(30, 1);
+    for (int i = 0; i < biase[3]->rows; i++) {
+        (biase[3]->data)[i][0] = b3[i][0];
+    }
+
+    biase[4] = createMatrix(25, 1);
+    for (int i = 0; i < biase[4]->rows; i++) {
+        (biase[4]->data)[i][0] = b4[i][0];
+    }
+
+    biase[5] = createMatrix(40, 1);
+    for (int i = 0; i < biase[5]->rows; i++) {
+        (biase[5]->data)[i][0] = b5[i][0];
+    }
+
+    biase[6] = createMatrix(52, 1);
+    for (int i = 0; i < biase[6]->rows; i++) {
+        (biase[6]->data)[i][0] = b6[i][0];
+    }
 
     // Run program
     const char* directory_path = argv[2];
