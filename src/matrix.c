@@ -1,5 +1,8 @@
 #include "matrix.h"
+#include "math.h"
 #include "stdio.h"
+#include "stdlib.h"
+
 matrix* createMatrix(int rows, int cols) {
     matrix* res = (matrix*)malloc(sizeof(matrix));
     res->rows = rows;
