@@ -36,5 +36,5 @@
 
 # misc
 .vscode
-*.csv
+results.csv
 build
