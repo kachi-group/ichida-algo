@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 # Set the project name
 project(ichida-algo)
@@ -7,4 +7,15 @@ set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED True)
 
-add_executable(speed_cpu src/main.c)
+set(SRC_DIR src)
+set(INC_DIR include)
+
+# Source files
+file(GLOB_RECURSE SOURCE_FILES ${SRC_DIR}/*.c)
+
+include_directories(include)
+add_executable(speed_cpu ${SOURCE_FILES})
+target_link_libraries(speed_cpu m)
+
+
+
