@@ -1,5 +1,6 @@
 
-.PHONY: all test clean
+.PHONY: all test clean run build run_test
+
 clean:
 	rm -rf build
 	rm speed_cpu

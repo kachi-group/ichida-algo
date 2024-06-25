@@ -125,6 +125,7 @@ int inference(matrix* input) {
 
     propagateForward(weight[6], layer[5], layer[6], biase[6]);
     softmax(layer[6]);
+
     return getResult(layer[6]);
 }
 
@@ -157,16 +158,17 @@ int main(int argc, char* argv[]) {
     matrix* input = createMatrix(225, 1);
 
     // Read and process inputs
-    const char* fileName[100];
-    char* fileNumStr[100];
+    char* fileName = (char*)malloc((100) * sizeof(char));
+    char* fileNumStr = (char*)malloc((100) * sizeof(char));
+
     int fileNum;
     int size = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
             size++;
             strcpy(fileNumStr, entry->d_name);
-            fileNumStr[strlen(fileNumStr) - 7] = '\0';
-            fileNum = atoi(fileNumStr);
+            fileNumStr[strlen(entry->d_name) - 7] = '\0';
+            fileNum = atoi(entry->d_name);
             strcpy(fileName, directory_path);
             strcat(fileName, "/");
             strcat(fileName, entry->d_name);
@@ -174,6 +176,8 @@ int main(int argc, char* argv[]) {
             results[fileNum] = inference(input);
         }
     }
+    free(fileName);
+    free(fileNumStr);
     closedir(dir);
 
     // Write to csv file
