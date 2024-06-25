@@ -2,10 +2,10 @@ name: cpp-linter
 on:
   pull_request:
     branches: main
-    paths: ['**.cpp','**.c', '**.h', '**CMakeLists.txt']
+    paths: ['**.cu','**.cpp','**.c', '**.h', '**CMakeLists.txt']
   push:
     branches: main
-    paths: ['**.cpp','**.c', '**.h', '**CMakeLists.txt']
+    paths: ['**.cu','**.cpp','**.c', '**.h', '**CMakeLists.txt']
 
 permissions:
     contents: write

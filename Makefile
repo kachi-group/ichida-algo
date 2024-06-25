@@ -4,6 +4,7 @@
 clean:
 	rm -rf build
 	rm speed_cpu
+
 build: 
 	cmake -Bbuild
 	$(MAKE) -C ./build

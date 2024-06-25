@@ -7,7 +7,6 @@
 
 matrix* weight[7];
 matrix* biase[7];
-int results[1000000];
 
 void processWeight(char* line, int layer) {
     char* token;
@@ -166,6 +165,13 @@ int main(int argc, char* argv[]) {
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
             size++;
+        }
+    }
+
+    int* results = (int*)malloc((size + 1) * sizeof(int));
+    dir = opendir(directory_path);
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_REG) {
             strcpy(fileNumStr, entry->d_name);
             fileNumStr[strlen(entry->d_name) - 7] = '\0';
             fileNum = atoi(entry->d_name);
@@ -176,6 +182,7 @@ int main(int argc, char* argv[]) {
             results[fileNum] = inference(input);
         }
     }
+
     free(fileName);
     free(fileNumStr);
     closedir(dir);

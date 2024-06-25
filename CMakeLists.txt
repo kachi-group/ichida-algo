@@ -10,7 +10,6 @@ set(CMAKE_C_STANDARD_REQUIRED True)
 set(SRC_DIR src)
 set(INC_DIR include)
 
-
 # Source files
 file(GLOB_RECURSE INCLUDE_FILES ${INC_DIR}/*.h)
 file(GLOB_RECURSE SOURCE_FILES ${SRC_DIR}/*.c)

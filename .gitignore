@@ -30,11 +30,8 @@
 *.exe
 *.out
 *.app
-*
-!*/
-!*.*
 
 # misc
 .vscode
-*.csv
 build
+results.csv
