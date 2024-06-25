@@ -90,7 +90,7 @@ void propagateForward(const matrix* weight, const matrix* input, matrix* nextLay
 // Get result from output layer
 int getResult(matrix* a) {
     int idx = 0;
-    float res = INT32_MIN;
+    float res = (a->data)[0][0];
     for (int i = 0; i < a->rows; i++) {
         if (res < (a->data)[i][0]) {
             res = (a->data)[i][0];
