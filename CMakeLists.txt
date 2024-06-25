@@ -18,7 +18,7 @@ file(GLOB_RECURSE SOURCE_FILES ${SRC_DIR}/*.c)
 add_library(${PROJECT_NAME} SHARED ${INCLUDE_FILES} ${SOURCE_FILES})
 include_directories(include)
 add_executable(speed_cpu ${SOURCE_FILES})
-
+target_link_libraries(speed_cpu m)
 
 set_target_properties(${PROJECT_NAME}
     PROPERTIES
