@@ -1,5 +1,4 @@
-#ifndef MATRIX_H
-#define MATRIX_H
+#pragma once
 
 typedef struct {
     int rows;
@@ -16,5 +15,3 @@ void addMatrix(matrix* a, const matrix* b);
 void ReLU(matrix* a);
 
 void softmax(matrix* a);
-
-#endif
