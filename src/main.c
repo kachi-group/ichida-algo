@@ -1,70 +1,12 @@
-#include <math.h>
+#include "matrix.h"
+#include "util.h"
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct {
-    int rows;
-    int cols;
-    float** data;
-} matrix;
-
 matrix* weight[7];
 matrix* biase[7];
-
-matrix* createMatrix(int rows, int cols) {
-    matrix* res = (matrix*)malloc(sizeof(matrix));
-    res->rows = rows;
-    res->cols = cols;
-    res->data = (float**)malloc(rows * sizeof(float*));
-    for (int i = 0; i < rows; i++) {
-        res->data[i] = (float*)malloc(cols * sizeof(float));
-    }
-    return res;
-}
-
-void multiplyMatrices(const matrix* a, const matrix* b, const matrix* result) {
-    for (int i = 0; i < result->rows; i++) {
-        for (int j = 0; j < result->cols; j++) {
-            float sum = 0;
-            for (int k = 0; k < a->cols; k++) {
-                sum += (a->data)[i][k] * ((b->data)[k][j]);
-            }
-            (result->data)[i][j] = sum;
-        }
-    }
-}
-
-void addMatrix(matrix* a, const matrix* b) {
-    for (int i = 0; i < a->rows; i++) {
-        for (int j = 0; j < a->cols; j++) {
-            (a->data)[i][j] += (b->data)[i][j];
-        }
-    }
-}
-
-void ReLU(matrix* a) {
-    for (int i = 0; i < a->rows; i++) {
-        for (int j = 0; j < a->cols; j++) {
-            if ((a->data)[i][j] < (float)0)
-                (a->data)[i][j] = (float)0;
-        }
-    }
-}
-
-void softmax(matrix* a) {
-    float res = (float)0;
-    for (int i = 0; i < a->rows; i++) {
-        for (int j = 0; j < a->cols; j++) {
-            res += exp((a->data)[i][j]);
-        }
-    }
-    for (int i = 0; i < a->rows; i++) {
-        for (int j = 0; j < a->cols; j++) {
-            (a->data)[i][j] /= res;
-        }
-    }
-}
 
 void processWeight(char* line, int layer) {
     char* token;
@@ -95,8 +37,8 @@ void processBiase(char* line, int layer) {
     }
 }
 
-void readModel() {
-    FILE* file = fopen("../weights_and_biases.txt", "r");
+void readModel(const char* fileName) {
+    FILE* file = fopen(fileName, "r");
 
     char* line = NULL;
     size_t len = 0;
@@ -117,9 +59,8 @@ void readModel() {
     fclose(file);
 }
 
-void readInput(matrix* a, char* fileName) {
+void readInput(matrix* a, const char* fileName) {
     FILE* file = fopen(fileName, "r");
-
     char* line = NULL;
     size_t len = 0;
     ssize_t read;
@@ -145,9 +86,10 @@ void propagateForward(const matrix* weight, const matrix* input, matrix* nextLay
     addMatrix(nextLayer, biase);
 }
 
+// Get result from output layer
 int getResult(matrix* a) {
     int idx = 0;
-    float res = INT32_MIN;
+    float res = (a->data)[0][0];
     for (int i = 0; i < a->rows; i++) {
         if (res < (a->data)[i][0]) {
             res = (a->data)[i][0];
@@ -182,11 +124,12 @@ int inference(matrix* input) {
 
     propagateForward(weight[6], layer[5], layer[6], biase[6]);
     softmax(layer[6]);
+
     return getResult(layer[6]);
 }
 
-int main() {
-
+int main(int argc, char* argv[]) {
+    // TODO: find a way to load static weights and biases
     // Load model (The memory of those code should be initialize during compile time to enchance the speed)
     weight[0] = createMatrix(98, 225);
     weight[1] = createMatrix(65, 98);
@@ -204,30 +147,53 @@ int main() {
     biase[5] = createMatrix(40, 1);
     biase[6] = createMatrix(52, 1);
 
-    readModel();
+    readModel(argv[1]);
 
-    char str[10];
-    char fileName[100];
-    matrix* input = createMatrix(255, 1);
+    // Run program
+    const char* directory_path = argv[2];
+    struct dirent* entry;
+    DIR* dir = opendir(directory_path);
 
-    for (int i = 1; i <= 52; i++) {
-        if (i < 10) {
-            sprintf(str, "0%d", i);
-        } else {
-            sprintf(str, "%d", i);
-        }
-        strcpy(fileName, "../tensors/");
-        strcat(fileName, str);
-        strcat(fileName, "out.txt");
+    matrix* input = createMatrix(225, 1);
 
-        // Read txt file
-        readInput(input, fileName);
+    // Read and process inputs
+    char* fileName = (char*)malloc((100) * sizeof(char));
+    char* fileNumStr = (char*)malloc((100) * sizeof(char));
 
-        // Check result
-        if (inference(input) + 1 == i) {
-            printf("Test %d correct ✅\n", i);
-        } else {
-            printf("Test %d incorrect ❌\n", i);
+    int fileNum;
+    int size = 0;
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_REG) {
+            size++;
         }
     }
+
+    int* results = (int*)malloc((size + 1) * sizeof(int));
+    dir = opendir(directory_path);
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_REG) {
+            strcpy(fileNumStr, entry->d_name);
+            fileNumStr[strlen(entry->d_name) - 7] = '\0';
+            fileNum = atoi(entry->d_name);
+            strcpy(fileName, directory_path);
+            strcat(fileName, "/");
+            strcat(fileName, entry->d_name);
+            readInput(input, fileName);
+            results[fileNum] = inference(input);
+        }
+    }
+
+    free(fileName);
+    free(fileNumStr);
+    closedir(dir);
+
+    // Write to csv file
+    FILE* fpt;
+    fpt = fopen("results.csv", "w+");
+    fprintf(fpt, "image_number, guess\n");
+    for (int i = 1; i <= size; i++) {
+        fprintf(fpt, "%d, %c\n", i, letters[results[i]]);
+    }
+
+    return EXIT_SUCCESS;
 }
