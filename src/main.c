@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
     biase[6] = createMatrix(52, 1);
 
     readModel(argv[1]);
-    // printf("%f", (weight[0]->data)[0][0]);
+
     // Run program
     const char* directory_path = argv[2];
     struct dirent* entry;
