@@ -30,6 +30,11 @@
 *.exe
 *.out
 *.app
+*
+!*/
+!*.*
 
-# csv
+# misc
+.vscode
 *.csv
+build
