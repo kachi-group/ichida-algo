@@ -187,7 +187,7 @@ int inference(matrix* input) {
 
 int main() {
 
-    // Load model
+    // Load model (The memory of those code should be initialize during compile time to enchance the speed)
     weight[0] = createMatrix(98, 225);
     weight[1] = createMatrix(65, 98);
     weight[2] = createMatrix(50, 65);
