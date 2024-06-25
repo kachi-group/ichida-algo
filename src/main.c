@@ -130,7 +130,6 @@ int inference(matrix* input) {
 }
 
 int main(int argc, char* argv[]) {
-    // TODO: find a way to load static weights and biases
     // Load model (The memory of those code should be initialize during compile time to enchance the speed)
     weight[0] = createMatrix(98, 225);
     for (int i = 0; i < weight[0]->rows; i++) {
