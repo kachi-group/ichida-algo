@@ -6,12 +6,12 @@ typedef struct {
     float** data;
 } matrix;
 
-matrix* createMatrix(int rows, int cols);
+matrix* new_matrix(int rows, int cols);
 
-void multiplyMatrices(const matrix* a, const matrix* b, const matrix* result);
+void matrix_mul(const matrix* a, const matrix* b, const matrix* result);
 
-void addMatrix(matrix* a, const matrix* b);
+void matrix_add(matrix* a, const matrix* b);
 
-void ReLU(matrix* a);
+void relu(matrix* a);
 
 void softmax(matrix* a);
