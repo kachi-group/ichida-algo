@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [ "$#" -ne 2 ]; then
     echo "Usage: speed_cpu <relative_path_to_weights_and_biases.txt> <relative_path_to_input_tensor_directory>"
