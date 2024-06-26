@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 matrix* weights[7];
 matrix* biases[7];
@@ -66,7 +67,7 @@ void read_tensor(matrix* a, const char* fileName) {
     FILE* file = fopen(fileName, "r");
     char* line = NULL;
     size_t len = 0;
-    ssize_t read;
+    size_t read;
     int line_number = 0;
 
     getline(&line, &len, file);
@@ -132,6 +133,9 @@ int infer(matrix* input) {
 }
 
 int main(int argc, char* argv[]) {
+    struct timeval stop, start;
+    gettimeofday(&start, NULL);
+
     // TODO: find a way to load static weights and biases
     // Load model (The memory of those code should be initialize during compile time to enchance the speed)
     weights[0] = new_matrix(98, 225);
@@ -197,5 +201,9 @@ int main(int argc, char* argv[]) {
         fprintf(csv_file, "%d, %c\n", i, letters[results[i]]);
     }
     fclose(csv_file);
+
+    gettimeofday(&stop, NULL);
+    printf("took %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
+
     return EXIT_SUCCESS;
 }
