@@ -3,9 +3,10 @@ cmake_minimum_required(VERSION 3.16)
 # Set the project name
 project(ichida-algo)
 
-set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
+set(CMAKE_C_FLAGS "-O3 -march=native -ffast-math -funroll-loops -Wall -Wextra")
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED True)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 set(SRC_DIR src)
 set(INC_DIR include)

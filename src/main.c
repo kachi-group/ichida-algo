@@ -3,9 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
-matrix* weights[7];
-matrix* biases[7];
+#define NUM_LAYERS 7
+
+matrix* weights[NUM_LAYERS];
+matrix* biases[NUM_LAYERS];
 
 char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 'G', 'g', 'H', 'h', 'I', 'i',
                     'J', 'j', 'K', 'k', 'L', 'l', 'M', 'm', 'N', 'n', 'O', 'o', 'P', 'p', 'Q', 'q', 'R', 'r',
@@ -66,15 +69,13 @@ void read_tensor(matrix* a, const char* fileName) {
     FILE* file = fopen(fileName, "r");
     char* line = NULL;
     size_t len = 0;
-    ssize_t read;
-    int line_number = 0;
 
     getline(&line, &len, file);
     char* token;
     float value;
     const char* delimiter = ",";
     token = strtok(line, delimiter);
-    int size = 0;
+
     for (int i = 0; i < 225; i++) {
         value = strtof(token, NULL);
         (a->data)[i] = value;
@@ -103,7 +104,7 @@ int get_max(matrix* a) {
 }
 
 int infer(matrix* input) {
-    matrix* mdl_layers[7];
+    matrix* mdl_layers[NUM_LAYERS];
     mdl_layers[0] = new_matrix(98, 1);
     mdl_layers[1] = new_matrix(65, 1);
     mdl_layers[2] = new_matrix(50, 1);
@@ -132,6 +133,15 @@ int infer(matrix* input) {
 }
 
 int main(int argc, char* argv[]) {
+    if (argc < 3) {
+        printf("Not enough arguments.");
+        return EXIT_FAILURE;
+    }
+
+    // Start timing
+    struct timeval stop, start;
+    gettimeofday(&start, NULL);
+
     // TODO: find a way to load static weights and biases
     // Load model (The memory of those code should be initialize during compile time to enchance the speed)
     weights[0] = new_matrix(98, 225);
@@ -197,5 +207,10 @@ int main(int argc, char* argv[]) {
         fprintf(csv_file, "%d, %c\n", i, letters[results[i]]);
     }
     fclose(csv_file);
+
+    // Time taken
+    gettimeofday(&stop, NULL);
+    printf("took %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
+
     return EXIT_SUCCESS;
 }
