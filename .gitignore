@@ -30,8 +30,10 @@
 *.exe
 *.out
 *.app
+speed_cpu
+speed_gpu
 
 # misc
-.vscode
-build
+.vscode/
+build/
 results.csv
