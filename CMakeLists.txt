@@ -9,12 +9,15 @@ set(CMAKE_C_STANDARD_REQUIRED True)
 
 set(SRC_DIR src)
 set(INC_DIR include)
+set(LIB_DIR lib)
 
 # Source files
 file(GLOB_RECURSE SOURCE_FILES ${SRC_DIR}/*.c)
 
 include_directories(include)
+
 add_executable(speed_cpu ${SOURCE_FILES})
+
 target_link_libraries(speed_cpu m)
 
 
