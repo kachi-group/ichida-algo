@@ -1,8 +1,8 @@
+#include "../include/matrix.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../include/matrix.h"
 
 matrix* weights[7];
 matrix* biases[7];
@@ -17,12 +17,11 @@ void process_weights_str(char* line, int layer) {
     const char* delimiter = ",";
 
     token = strtok(line, delimiter);
-    for (int i = 0; i < weights[layer]->rows; i++) {
-        for (int j = 0; j < weights[layer]->cols; j++) {
-            value = strtof(token, NULL);
-            (weights[layer]->data)[i][j] = value;
-            token = strtok(NULL, delimiter);
-        }
+    int n = (weights[layer]->rows) * (weights[layer]->cols);
+    for (int i = 0; i < n; i++) {
+        value = strtof(token, NULL);
+        (weights[layer]->data)[i] = value;
+        token = strtok(NULL, delimiter);
     }
 }
 
@@ -33,9 +32,10 @@ void process_biases_str(char* line, int layer) {
 
     token = strtok(line, delimiter);
 
-    for (int i = 0; i < biases[layer]->rows; i++) {
+    int n = biases[layer]->rows;
+    for (int i = 0; i < n; i++) {
         value = strtof(token, NULL);
-        (biases[layer]->data)[i][0] = value;
+        (biases[layer]->data)[i] = value;
         token = strtok(NULL, delimiter);
     }
 }
@@ -77,7 +77,7 @@ void read_tensor(matrix* a, const char* fileName) {
     int size = 0;
     for (int i = 0; i < 225; i++) {
         value = strtof(token, NULL);
-        (a->data)[i][0] = value;
+        (a->data)[i] = value;
         token = strtok(NULL, delimiter);
     }
     free(line);
@@ -92,10 +92,10 @@ void propagate_fwd(const matrix* weights, const matrix* input_layer, matrix* out
 // Get result from output layer
 int get_max(matrix* a) {
     int idx = 0;
-    float res = (a->data)[0][0];
+    float res = (a->data)[0];
     for (int i = 0; i < a->rows; i++) {
-        if (res < (a->data)[i][0]) {
-            res = (a->data)[i][0];
+        if (res < (a->data)[i]) {
+            res = (a->data)[i];
             idx = i;
         }
     }
@@ -196,6 +196,6 @@ int main(int argc, char* argv[]) {
     for (int i = 1; i <= size; i++) {
         fprintf(csv_file, "%d, %c\n", i, letters[results[i]]);
     }
-
+    fclose(csv_file);
     return EXIT_SUCCESS;
 }
