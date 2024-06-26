@@ -22,19 +22,19 @@ void matrix_mul(const matrix* weights, const matrix* inputs, const matrix* __res
 
     int u_limit = w_width - (UNROLL_FACTOR - 1);
 
-    for (int cur_row = 0; cur_row < res_rows; cur_row++) {    
+    for (int cur_row = 0; cur_row < res_rows; cur_row++) {
         float sum0 = 0;
-        float sum1 = 0; 
-        float sum2 = 0; 
-        float sum3 = 0; 
-        float sum4 = 0; 
-        float sum5 = 0; 
-        float sum6 = 0; 
+        float sum1 = 0;
+        float sum2 = 0;
+        float sum3 = 0;
+        float sum4 = 0;
+        float sum5 = 0;
+        float sum6 = 0;
         float sum7 = 0;
-        // float sum8 = 0; 
+        // float sum8 = 0;
         // float sum9 = 0;
         int row_offs = cur_row * w_width;
-        
+
         int k = 0;
         for (; k < u_limit; k += UNROLL_FACTOR) {
             sum0 += w_data[row_offs + k] * i_data[k];
@@ -52,10 +52,8 @@ void matrix_mul(const matrix* weights, const matrix* inputs, const matrix* __res
         for (; k < w_width; k++) {
             sum0 += w_data[row_offs + k] * i_data[k];
         }
-        
-        (result->data)[cur_row] = 
-        sum0 + sum1 + sum2 + sum3 + sum4 
-        + sum5 + sum6 + sum7; // + sum8 + sum9;
+
+        (result->data)[cur_row] = sum0 + sum1 + sum2 + sum3 + sum4 + sum5 + sum6 + sum7; // + sum8 + sum9;
     }
 }
 

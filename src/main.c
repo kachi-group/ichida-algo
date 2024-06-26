@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
         printf("Not enough arguments.");
         return EXIT_FAILURE;
     }
-    
+
     // Start timing
     struct timeval stop, start;
     gettimeofday(&start, NULL);
