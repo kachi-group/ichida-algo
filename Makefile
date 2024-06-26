@@ -1,9 +1,12 @@
+.PHONY: all test clean run build run_test
 
-.PHONY: all test clean
+all: build
+
 clean:
 	rm -rf build
 	rm speed_cpu
-build: 
+
+build:
 	cmake -Bbuild
 	$(MAKE) -C ./build
 	mv ./build/speed_cpu ./

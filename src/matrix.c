@@ -1,6 +1,8 @@
-#include "matrix.h"
-#include "stdio.h"
-matrix* createMatrix(int rows, int cols) {
+#include "../include/matrix.h"
+#include "math.h"
+#include "stdlib.h"
+
+matrix* new_matrix(int rows, int cols) {
     matrix* res = (matrix*)malloc(sizeof(matrix));
     res->rows = rows;
     res->cols = cols;
@@ -11,7 +13,7 @@ matrix* createMatrix(int rows, int cols) {
     return res;
 }
 
-void multiplyMatrices(const matrix* a, const matrix* b, const matrix* result) {
+void matrix_mul(const matrix* a, const matrix* b, const matrix* result) {
     for (int i = 0; i < result->rows; i++) {
         for (int j = 0; j < result->cols; j++) {
             float sum = 0;
@@ -23,7 +25,7 @@ void multiplyMatrices(const matrix* a, const matrix* b, const matrix* result) {
     }
 }
 
-void addMatrix(matrix* a, const matrix* b) {
+void matrix_add(matrix* a, const matrix* b) {
     for (int i = 0; i < a->rows; i++) {
         for (int j = 0; j < a->cols; j++) {
             (a->data)[i][j] += (b->data)[i][j];
@@ -31,7 +33,7 @@ void addMatrix(matrix* a, const matrix* b) {
     }
 }
 
-void ReLU(matrix* a) {
+void relu(matrix* a) {
     for (int i = 0; i < a->rows; i++) {
         for (int j = 0; j < a->cols; j++) {
             if ((a->data)[i][j] < (float)0)
