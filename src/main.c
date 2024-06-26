@@ -1,44 +1,47 @@
-#include "matrix.h"
-#include "util.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../include/matrix.h"
 
-matrix* weight[7];
-matrix* biase[7];
+matrix* weights[7];
+matrix* biases[7];
 
-void processWeight(char* line, int layer) {
+char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 'G', 'g', 'H', 'h', 'I', 'i',
+                    'J', 'j', 'K', 'k', 'L', 'l', 'M', 'm', 'N', 'n', 'O', 'o', 'P', 'p', 'Q', 'q', 'R', 'r',
+                    'S', 's', 'T', 't', 'U', 'u', 'V', 'v', 'W', 'w', 'X', 'x', 'Y', 'y', 'Z', 'z'};
+
+void process_weights_str(char* line, int layer) {
     char* token;
     float value;
     const char* delimiter = ",";
 
     token = strtok(line, delimiter);
-    for (int i = 0; i < weight[layer]->rows; i++) {
-        for (int j = 0; j < weight[layer]->cols; j++) {
+    for (int i = 0; i < weights[layer]->rows; i++) {
+        for (int j = 0; j < weights[layer]->cols; j++) {
             value = strtof(token, NULL);
-            (weight[layer]->data)[i][j] = value;
+            (weights[layer]->data)[i][j] = value;
             token = strtok(NULL, delimiter);
         }
     }
 }
 
-void processBiase(char* line, int layer) {
+void process_biases_str(char* line, int layer) {
     char* token;
     float value;
     const char* delimiter = ",";
 
     token = strtok(line, delimiter);
 
-    for (int i = 0; i < biase[layer]->rows; i++) {
+    for (int i = 0; i < biases[layer]->rows; i++) {
         value = strtof(token, NULL);
-        (biase[layer]->data)[i][0] = value;
+        (biases[layer]->data)[i][0] = value;
         token = strtok(NULL, delimiter);
     }
 }
 
-void readModel(const char* fileName) {
-    FILE* file = fopen(fileName, "r");
+void read_model(const char* file_name) {
+    FILE* file = fopen(file_name, "r");
 
     char* line = NULL;
     size_t len = 0;
@@ -47,9 +50,9 @@ void readModel(const char* fileName) {
 
     while ((getline(&line, &len, file)) != -1) {
         if ((line_number - 1) % 4 == 0) {
-            processWeight(line, layer);
+            process_weights_str(line, layer);
         } else if ((line_number - 3) % 4 == 0) {
-            processBiase(line, layer);
+            process_biases_str(line, layer);
             layer++;
         }
         line_number++;
@@ -59,7 +62,7 @@ void readModel(const char* fileName) {
     fclose(file);
 }
 
-void readInput(matrix* a, const char* fileName) {
+void read_tensor(matrix* a, const char* fileName) {
     FILE* file = fopen(fileName, "r");
     char* line = NULL;
     size_t len = 0;
@@ -81,13 +84,13 @@ void readInput(matrix* a, const char* fileName) {
     fclose(file);
 }
 
-void propagateForward(const matrix* weight, const matrix* input, matrix* nextLayer, const matrix* biase) {
-    multiplyMatrices(weight, input, nextLayer);
-    addMatrix(nextLayer, biase);
+void propagate_fwd(const matrix* weights, const matrix* input_layer, matrix* output_layer, const matrix* biases) {
+    matrix_mul(weights, input_layer, output_layer);
+    matrix_add(output_layer, biases);
 }
 
 // Get result from output layer
-int getResult(matrix* a) {
+int get_max(matrix* a) {
     int idx = 0;
     float res = (a->data)[0][0];
     for (int i = 0; i < a->rows; i++) {
@@ -99,68 +102,68 @@ int getResult(matrix* a) {
     return idx;
 }
 
-int inference(matrix* input) {
-    matrix* layer[7];
-    layer[0] = createMatrix(98, 1);
-    layer[1] = createMatrix(65, 1);
-    layer[2] = createMatrix(50, 1);
-    layer[3] = createMatrix(30, 1);
-    layer[4] = createMatrix(25, 1);
-    layer[5] = createMatrix(40, 1);
-    layer[6] = createMatrix(52, 1);
+int infer(matrix* input) {
+    matrix* mdl_layers[7];
+    mdl_layers[0] = new_matrix(98, 1);
+    mdl_layers[1] = new_matrix(65, 1);
+    mdl_layers[2] = new_matrix(50, 1);
+    mdl_layers[3] = new_matrix(30, 1);
+    mdl_layers[4] = new_matrix(25, 1);
+    mdl_layers[5] = new_matrix(40, 1);
+    mdl_layers[6] = new_matrix(52, 1);
 
-    propagateForward(weight[0], input, layer[0], biase[0]);
-    ReLU(layer[0]);
-    propagateForward(weight[1], layer[0], layer[1], biase[1]);
-    ReLU(layer[1]);
-    propagateForward(weight[2], layer[1], layer[2], biase[2]);
-    ReLU(layer[2]);
-    propagateForward(weight[3], layer[2], layer[3], biase[3]);
-    ReLU(layer[3]);
-    propagateForward(weight[4], layer[3], layer[4], biase[4]);
-    ReLU(layer[4]);
-    propagateForward(weight[5], layer[4], layer[5], biase[5]);
-    ReLU(layer[5]);
+    propagate_fwd(weights[0], input, mdl_layers[0], biases[0]);
+    relu(mdl_layers[0]);
+    propagate_fwd(weights[1], mdl_layers[0], mdl_layers[1], biases[1]);
+    relu(mdl_layers[1]);
+    propagate_fwd(weights[2], mdl_layers[1], mdl_layers[2], biases[2]);
+    relu(mdl_layers[2]);
+    propagate_fwd(weights[3], mdl_layers[2], mdl_layers[3], biases[3]);
+    relu(mdl_layers[3]);
+    propagate_fwd(weights[4], mdl_layers[3], mdl_layers[4], biases[4]);
+    relu(mdl_layers[4]);
+    propagate_fwd(weights[5], mdl_layers[4], mdl_layers[5], biases[5]);
+    relu(mdl_layers[5]);
 
-    propagateForward(weight[6], layer[5], layer[6], biase[6]);
-    softmax(layer[6]);
+    propagate_fwd(weights[6], mdl_layers[5], mdl_layers[6], biases[6]);
+    softmax(mdl_layers[6]);
 
-    return getResult(layer[6]);
+    return get_max(mdl_layers[6]);
 }
 
 int main(int argc, char* argv[]) {
     // TODO: find a way to load static weights and biases
     // Load model (The memory of those code should be initialize during compile time to enchance the speed)
-    weight[0] = createMatrix(98, 225);
-    weight[1] = createMatrix(65, 98);
-    weight[2] = createMatrix(50, 65);
-    weight[3] = createMatrix(30, 50);
-    weight[4] = createMatrix(25, 30);
-    weight[5] = createMatrix(40, 25);
-    weight[6] = createMatrix(52, 40);
+    weights[0] = new_matrix(98, 225);
+    weights[1] = new_matrix(65, 98);
+    weights[2] = new_matrix(50, 65);
+    weights[3] = new_matrix(30, 50);
+    weights[4] = new_matrix(25, 30);
+    weights[5] = new_matrix(40, 25);
+    weights[6] = new_matrix(52, 40);
 
-    biase[0] = createMatrix(98, 1);
-    biase[1] = createMatrix(65, 1);
-    biase[2] = createMatrix(50, 1);
-    biase[3] = createMatrix(30, 1);
-    biase[4] = createMatrix(25, 1);
-    biase[5] = createMatrix(40, 1);
-    biase[6] = createMatrix(52, 1);
+    biases[0] = new_matrix(98, 1);
+    biases[1] = new_matrix(65, 1);
+    biases[2] = new_matrix(50, 1);
+    biases[3] = new_matrix(30, 1);
+    biases[4] = new_matrix(25, 1);
+    biases[5] = new_matrix(40, 1);
+    biases[6] = new_matrix(52, 1);
 
-    readModel(argv[1]);
+    read_model(argv[1]);
 
     // Run program
     const char* directory_path = argv[2];
     struct dirent* entry;
     DIR* dir = opendir(directory_path);
 
-    matrix* input = createMatrix(225, 1);
+    matrix* input = new_matrix(225, 1);
 
     // Read and process inputs
-    char* fileName = (char*)malloc((100) * sizeof(char));
-    char* fileNumStr = (char*)malloc((100) * sizeof(char));
+    char* file_name = (char*)malloc((100) * sizeof(char));
+    char* file_num_str = (char*)malloc((100) * sizeof(char));
 
-    int fileNum;
+    int file_num;
     int size = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
@@ -172,27 +175,26 @@ int main(int argc, char* argv[]) {
     dir = opendir(directory_path);
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
-            strcpy(fileNumStr, entry->d_name);
-            fileNumStr[strlen(entry->d_name) - 7] = '\0';
-            fileNum = atoi(entry->d_name);
-            strcpy(fileName, directory_path);
-            strcat(fileName, "/");
-            strcat(fileName, entry->d_name);
-            readInput(input, fileName);
-            results[fileNum] = inference(input);
+            strcpy(file_num_str, entry->d_name);
+            file_num_str[strlen(entry->d_name) - 7] = '\0';
+            file_num = atoi(entry->d_name);
+            strcpy(file_name, directory_path);
+            strcat(file_name, "/");
+            strcat(file_name, entry->d_name);
+            read_tensor(input, file_name);
+            results[file_num] = infer(input);
         }
     }
 
-    free(fileName);
-    free(fileNumStr);
+    free(file_name);
+    free(file_num_str);
     closedir(dir);
 
     // Write to csv file
-    FILE* fpt;
-    fpt = fopen("results.csv", "w+");
-    fprintf(fpt, "image_number, guess\n");
+    FILE* csv_file = fopen("results.csv", "w+");
+    fprintf(csv_file, "image_number, guess\n");
     for (int i = 1; i <= size; i++) {
-        fprintf(fpt, "%d, %c\n", i, letters[results[i]]);
+        fprintf(csv_file, "%d, %c\n", i, letters[results[i]]);
     }
 
     return EXIT_SUCCESS;
