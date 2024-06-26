@@ -3,10 +3,12 @@
 all: build
 
 clean:
+	rm -f test/results.csv
+	rm -f results.csv
 	rm -rf build
-	rm speed_cpu
+	rm -f speed_cpu
 
-build:
+build: clean
 	cmake -Bbuild
 	$(MAKE) -C ./build
 	mv ./build/speed_cpu ./
