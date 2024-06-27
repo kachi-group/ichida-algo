@@ -23,14 +23,13 @@ We decided to go down this path because it sounded like some high risk, high rew
 All team members are from RMIT.
 ### Artemis Rosman - **rozukke**
 - Project management
-- SIMD
-- CPU optimisation (loops, asm)
+- CPU optimisation (loops, asm, SIMD)
 - Code review
 - Communication
 - Design
 - A lot of textbook reading
 
-### Dan Dong - **dandong77**
+### Dan Dang - **nhatdongdang**
 - Core implementation in C
 - Testing and timing
 - CPU optimisation (multithread)
