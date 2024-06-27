@@ -1,5 +1,5 @@
 #include "../include/matrix.h"
-#include <immintrin.h>
+#include <immintrin.h> // For SIMD intrinsics
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,37 +71,42 @@ void matrix_mul(const matrix* weights, const matrix* inputs, const matrix* __res
 //         (result->data)[i] = sum;
 //     }
 // }
-// addition using unaligned avx
+
 void matrix_add(matrix* a, const matrix* b) {
     int total_size = a->rows * a->cols;
     int i = 0;
     float* a_data = a->data;
     float* b_data = b->data;
 
-    // loop unroll 8
-    for (; i <= total_size - 8; i += 8) {
-        // load  data into avx register
+    // loop unrolling
+    for (; i <= total_size - UNROLL_FACTOR; i += UNROLL_FACTOR) {
+        // load  data into avx register,256 is selected as it can operate float addition in simd.
         __m256 a_vec = _mm256_loadu_ps(&a_data[i]);
         __m256 b_vec = _mm256_loadu_ps(&b_data[i]);
 
-        // sum of them
+        // adding a_vec + b_vec
         __m256 result_vec = _mm256_add_ps(a_vec, b_vec);
 
-        // saved back to the array
+        // load the sum of the values back to the array
         _mm256_storeu_ps(&a_data[i], result_vec);
     }
 
-    // remaining to handle edge cases,
+    // Handle remaining values from the unrolled loop
     int remaining = total_size - i;
-    // masking is like if statement i.e remaining> 7, remaining > 6, etc
+
+    // Masking the remaining values
     __m256i mask = _mm256_cmpgt_epi32(_mm256_set1_epi32(remaining), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
-    // same shit
+
+    // load  data into avx register,256 is selected as it can operate float addition in simd.
     __m256 a_vec = _mm256_maskload_ps(&a_data[i], mask);
     __m256 b_vec = _mm256_maskload_ps(&b_data[i], mask);
+
+    // adding a_vec + b_vec
     __m256 result_vec = _mm256_add_ps(a_vec, b_vec);
+
+    // load the sum of the values back to the array
     _mm256_maskstore_ps(&a_data[i], mask, result_vec);
 }
-
 void relu(matrix* a) {
     for (int i = 0; i < a->rows; i++) {
         if ((a->data)[i] < (float)0)

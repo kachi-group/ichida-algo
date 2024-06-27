@@ -207,9 +207,7 @@ int main(int argc, char* argv[]) {
         fprintf(csv_file, "%d, %c\n", i, letters[results[i]]);
     }
     fclose(csv_file);
-    for (int i = 0; i < 10000000; i++) {
-        infer(input);
-    }
+
     // Time taken
     gettimeofday(&stop, NULL);
     printf("took %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);

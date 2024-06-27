@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Load the generated CSV
-generated_csv = pd.read_csv('results.csv')
+generated_csv = pd.read_csv('./test/results.csv')
 
 # Load the expected CSV
 expected_csv = pd.read_csv('./test/expected_results.csv')
