@@ -33,7 +33,8 @@
 speed_cpu
 speed_gpu
 
-# misc
+# Misc
 .vscode/
 build/
 results.csv
+tensors/
