@@ -13,23 +13,29 @@ set(CMAKE_CUDA_FLAGS "-O3 -arch=sm_80")
 
 set(SRC_DIR src)
 set(INC_DIR include)
-set(LIB_DIR lib)
-set(CUDA_DIR ${SRC_DIR}/cuda)
-
-# Source files
-file(GLOB_RECURSE CPU_SOURCE_FILES ${SRC_DIR}/*.c)
-file(GLOB_RECURSE CUDA_SOURCE_FILES ${CUDA_DIR}/*.cu)
-
-# Exclude main_gpu.cu from CPU sources and main_cpu.c from GPU sources
-list(REMOVE_ITEM CPU_SOURCE_FILES ${SRC_DIR}/main_gpu.cu)
-list(REMOVE_ITEM CUDA_SOURCE_FILES ${SRC_DIR}/main_cpu.c)
+set(CUDA_DIR cuda/src)
 
 include_directories(${INC_DIR})
 
-# Create executables
-add_executable(speed_cpu ${CPU_SOURCE_FILES})
-add_executable(speed_gpu ${CUDA_SOURCE_FILES})
+# Option to select only CPU or GPU build
+option(BUILD_CPU "Build CPU code" ON)
+option(BUILD_GPU "Build GPU code" OFF)
 
-# Link libraries
-target_link_libraries(speed_cpu m)
-target_link_libraries(speed_gpu m)
+if (BUILD_CPU)
+    # Source files for CPU
+    file(GLOB_RECURSE CPU_SOURCE_FILES ${SRC_DIR}/*.c)
+
+    # Create CPU executable
+    add_executable(speed_cpu ${CPU_SOURCE_FILES})
+    target_link_libraries(speed_cpu m)
+endif()
+
+if (BUILD_GPU)
+    # Source files for GPU
+    file(GLOB_RECURSE CUDA_SOURCE_FILES ${CUDA_DIR}/*.cu)
+
+    # Create GPU executable
+    add_executable(speed_gpu ${CUDA_SOURCE_FILES})
+    set_target_properties(speed_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+    target_link_libraries(speed_gpu m)
+endif()
