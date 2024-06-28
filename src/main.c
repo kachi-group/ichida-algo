@@ -219,8 +219,8 @@ int main(int argc, char* argv[]) {
     // Write to csv file
     FILE* csv_file = fopen("results.csv", "w+");
     fprintf(csv_file, "image_number, guess\n");
-    for (int i = 0; i <= input_count; i++) {
-        fprintf(csv_file, "%d, %c\n", i, letters[results[i]]);
+    for (int i = 0; i < input_count; i++) {
+        fprintf(csv_file, "%d, %c\n", i + 1, letters[results[i]]);
     }
     fclose(csv_file);
 
