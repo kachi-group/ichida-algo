@@ -36,5 +36,6 @@ speed_gpu
 # Misc
 .vscode/
 build/
+build_gpu/
 results.csv
 tensors/
