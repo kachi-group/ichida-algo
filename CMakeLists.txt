@@ -9,7 +9,8 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED True)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-set(CMAKE_CUDA_FLAGS "-O3 -arch=sm_80")
+# Ensure CUDA NVCC flags are set properly
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -arch=sm_75")
 
 set(SRC_DIR src)
 set(INC_DIR include)

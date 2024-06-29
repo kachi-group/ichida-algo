@@ -12,7 +12,26 @@ matrix* new_matrix(int rows, int cols) {
     res->data = (float*)malloc((rows * cols) * sizeof(float));
     return res;
 }
-
+__global__ void ptref(matrix* d_mat, float* d_res, int* d_cols, int* d_rows) {
+    d_mat->data = d_res;
+    d_mat->cols = *d_cols;
+    d_mat->rows = *d_rows;
+    printf("Data: %p, Cols: %d, Rows: %d\n", d_mat->data, d_mat->cols, d_mat->rows);
+    printf("Done \n");
+}
+void initmalloc(matrix* d_mat, matrix* h_mat, int rows, int cols) {
+    int* d_cols;
+    int* d_rows;
+    float* d_res;
+    cudaMalloc(&d_cols, sizeof(int));
+    cudaMalloc(&d_rows, sizeof(int));
+    cudaMalloc(&d_res, rows * cols * sizeof(float));
+    cudaMemcpy(d_rows, &(rows), sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_cols, &(cols), sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_res, &(h_mat->data), rows * cols * sizeof(float), cudaMemcpyHostToDevice);
+    ptref<<<1, 1>>>(d_mat, d_res, d_cols, d_rows);
+    cudaDeviceSynchronize();
+}
 // Loop unrolling optimisation with a factor of 8 which should be enough to saturate a Zen3 core
 void matrix_mul(const matrix* weights, const matrix* inputs, const matrix* __restrict__ result) {
     int res_rows = result->rows;

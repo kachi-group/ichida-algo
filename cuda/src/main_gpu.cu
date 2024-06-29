@@ -19,6 +19,12 @@
 
 matrix* weights[NUM_LAYERS];
 matrix* biases[NUM_LAYERS];
+// device weights and biases;
+matrix* d_weights;
+matrix* d_biases;
+// allocating device matrix for weights and biases
+// CUDA_CHECK(cudaMalloc(&d_weights, NUM_LAYERS * sizeof(matrix)));
+// CUDA_CHECK(cudaMalloc(&d_biases, NUM_LAYERS * sizeof(matrix)));
 
 char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 'G', 'g', 'H', 'h', 'I', 'i',
                     'J', 'j', 'K', 'k', 'L', 'l', 'M', 'm', 'N', 'n', 'O', 'o', 'P', 'p', 'Q', 'q', 'R', 'r',
@@ -123,13 +129,13 @@ int infer(matrix* input) {
     mdl_layers[5] = new_matrix(40, 1);
     mdl_layers[6] = new_matrix(52, 1);
 
-    CUDA_CHECK(cudaMalloc(&mdl_layers[0]->data, 98 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&mdl_layers[1]->data, 65 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&mdl_layers[2]->data, 50 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&mdl_layers[3]->data, 30 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&mdl_layers[4]->data, 25 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&mdl_layers[5]->data, 40 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&mdl_layers[6]->data, 52 * sizeof(float)));
+    // CUDA_CHECK(cudaMalloc(&mdl_layers[0]->data, 98 * sizeof(float)));
+    // CUDA_CHECK(cudaMalloc(&mdl_layers[1]->data, 65 * sizeof(float)));
+    // CUDA_CHECK(cudaMalloc(&mdl_layers[2]->data, 50 * sizeof(float)));
+    // CUDA_CHECK(cudaMalloc(&mdl_layers[3]->data, 30 * sizeof(float)));
+    // CUDA_CHECK(cudaMalloc(&mdl_layers[4]->data, 25 * sizeof(float)));
+    // CUDA_CHECK(cudaMalloc(&mdl_layers[5]->data, 40 * sizeof(float)));
+    // CUDA_CHECK(cudaMalloc(&mdl_layers[6]->data, 52 * sizeof(float)));
 
     // propagate_fwd(weights[0], input, mdl_layers[0], biases[0]);
     // relu(mdl_layers[0]);
@@ -180,71 +186,62 @@ int main(int argc, char* argv[]) {
     biases[6] = new_matrix(52, 1);
 
     read_model(argv[1]);
-    CUDA_CHECK(cudaMalloc(&weights[0]->data, 98 * 225 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&weights[1]->data, 65 * 98 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&weights[2]->data, 50 * 65 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&weights[3]->data, 30 * 50 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&weights[4]->data, 25 * 30 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&weights[5]->data, 40 * 25 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&weights[6]->data, 52 * 40 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&biases[0]->data, 98 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&biases[1]->data, 65 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&biases[2]->data, 50 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&biases[3]->data, 30 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&biases[4]->data, 25 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&biases[5]->data, 40 * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&biases[6]->data, 52 * sizeof(float)));
+    // initialize d_weights struct matrix arr;
+    CUDA_CHECK(cudaMalloc(&d_weights, NUM_LAYERS * sizeof(matrix)));
+    CUDA_CHECK(cudaMalloc(&d_biases, NUM_LAYERS * sizeof(matrix)));
+    initmalloc(&d_weights[0], weights[0], 98, 225);
+
     // Run program
     const char* directory_path = argv[2];
-    struct dirent* entry;
-    DIR* dir = opendir(directory_path);
+    // struct dirent* entry;
+    // DIR* dir = opendir(directory_path);
 
-    // Read and process inputs
-    char* file_name = (char*)malloc((100) * sizeof(char));
-    char* file_num_str = (char*)malloc((100) * sizeof(char));
+    // // Read and process inputs
+    // char* file_name = (char*)malloc((100) * sizeof(char));
+    // char* file_num_str = (char*)malloc((100) * sizeof(char));
 
-    int file_num;
-    int size = 0;
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            size++;
-        }
-    }
-    std::cout << "Done" << std::endl;
-    int* results = (int*)malloc((size + 1) * sizeof(int));
-    dir = opendir(directory_path);
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            matrix* input = new_matrix(225, 1);
-            strcpy(file_num_str, entry->d_name);
-            file_num_str[strlen(entry->d_name) - 7] = '\0';
-            file_num = atoi(entry->d_name);
-            strcpy(file_name, directory_path);
-            strcat(file_name, "/");
-            strcat(file_name, entry->d_name);
-            read_tensor(input, file_name);
-            CUDA_CHECK(cudaMalloc(&input->data, 255 * sizeof(float)));
-            // results[file_num] = infer(input);
-            CUDA_CHECK(cudaFree(input->data));
-            free(input);
-        }
-    }
-    std::cout << "Exit" << std::endl;
-
-    free(file_name);
-    free(file_num_str);
-    closedir(dir);
-
-    // // Write to csv file
-    // FILE* csv_file = fopen("results.csv", "w+");
-    // fprintf(csv_file, "image_number, guess\n");
-    // for (int i = 1; i <= size; i++) {
-    //     fprintf(csv_file, "%d, %c\n", i, letters[results[i]]);
+    // int file_num;
+    // int size = 0;
+    // while ((entry = readdir(dir)) != NULL) {
+    //     if (entry->d_type == DT_REG) {
+    //         size++;
+    //     }
     // }
-    // fclose(csv_file);
+    // std::cout << "Done" << std::endl;
+    // int* results = (int*)malloc((size + 1) * sizeof(int));
+    // dir = opendir(directory_path);
+    // while ((entry = readdir(dir)) != NULL) {
+    //     if (entry->d_type == DT_REG) {
+    //         matrix* input = new_matrix(225, 1);
+    //         strcpy(file_num_str, entry->d_name);
+    //         file_num_str[strlen(entry->d_name) - 7] = '\0';
+    //         file_num = atoi(entry->d_name);
+    //         strcpy(file_name, directory_path);
+    //         strcat(file_name, "/");
+    //         strcat(file_name, entry->d_name);
+    //         read_tensor(input, file_name);
+    //         CUDA_CHECK(cudaMalloc(&input->data, 255 * sizeof(float)));
+    //         // results[file_num] = infer(input);
+    //         CUDA_CHECK(cudaFree(input->data));
+    //         free(input);
+    //     }
+    // }
+    // std::cout << "Exit" << std::endl;
 
-    // // Time taken
-    // gettimeofday(&stop, NULL);
+    // free(file_name);
+    // free(file_num_str);
+    // closedir(dir);
+
+    // // // Write to csv file
+    // // FILE* csv_file = fopen("results.csv", "w+");
+    // // fprintf(csv_file, "image_number, guess\n");
+    // // for (int i = 1; i <= size; i++) {
+    // //     fprintf(csv_file, "%d, %c\n", i, letters[results[i]]);
+    // // }
+    // // fclose(csv_file);
+
+    // // // Time taken
+    // // gettimeofday(&stop, NULL);
     // printf("took %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
 
     return EXIT_SUCCESS;
