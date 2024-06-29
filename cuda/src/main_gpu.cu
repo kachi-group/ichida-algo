@@ -19,9 +19,11 @@
 
 matrix* weights[NUM_LAYERS];
 matrix* biases[NUM_LAYERS];
+
 // device weights and biases;
 matrix* d_weights;
 matrix* d_biases;
+matrix* d_input;
 // allocating device matrix for weights and biases
 // CUDA_CHECK(cudaMalloc(&d_weights, NUM_LAYERS * sizeof(matrix)));
 // CUDA_CHECK(cudaMalloc(&d_biases, NUM_LAYERS * sizeof(matrix)));
@@ -96,6 +98,7 @@ void read_tensor(matrix* a, const char* fileName) {
         value = strtof(token, NULL);
         (a->data)[i] = value;
         token = strtok(NULL, delimiter);
+        std::cout << value << std::endl;
     }
     free(line);
     fclose(file);
@@ -190,42 +193,59 @@ int main(int argc, char* argv[]) {
     CUDA_CHECK(cudaMalloc(&d_weights, NUM_LAYERS * sizeof(matrix)));
     CUDA_CHECK(cudaMalloc(&d_biases, NUM_LAYERS * sizeof(matrix)));
     initmalloc(&d_weights[0], weights[0], 98, 225);
+    initmalloc(&d_weights[1], weights[1], 65, 98);
+    initmalloc(&d_weights[2], weights[2], 50, 65);
+    initmalloc(&d_weights[3], weights[3], 30, 50);
+    initmalloc(&d_weights[4], weights[4], 25, 30);
+    initmalloc(&d_weights[5], weights[5], 40, 25);
+    initmalloc(&d_weights[6], weights[6], 52, 40);
+    initmalloc(&d_biases[0], biases[0], 98, 1);
+    initmalloc(&d_biases[1], biases[1], 65, 1);
+    initmalloc(&d_biases[2], biases[2], 50, 1);
+    initmalloc(&d_biases[3], biases[3], 30, 1);
+    initmalloc(&d_biases[4], biases[4], 25, 1);
+    initmalloc(&d_biases[5], biases[5], 40, 1);
+    initmalloc(&d_biases[6], biases[6], 52, 1);
 
     // Run program
     const char* directory_path = argv[2];
-    // struct dirent* entry;
-    // DIR* dir = opendir(directory_path);
+    struct dirent* entry;
+    DIR* dir = opendir(directory_path);
 
-    // // Read and process inputs
-    // char* file_name = (char*)malloc((100) * sizeof(char));
-    // char* file_num_str = (char*)malloc((100) * sizeof(char));
+    // Read and process inputs
+    char* file_name = (char*)malloc((100) * sizeof(char));
+    char* file_num_str = (char*)malloc((100) * sizeof(char));
 
-    // int file_num;
-    // int size = 0;
-    // while ((entry = readdir(dir)) != NULL) {
-    //     if (entry->d_type == DT_REG) {
-    //         size++;
-    //     }
-    // }
-    // std::cout << "Done" << std::endl;
-    // int* results = (int*)malloc((size + 1) * sizeof(int));
-    // dir = opendir(directory_path);
-    // while ((entry = readdir(dir)) != NULL) {
-    //     if (entry->d_type == DT_REG) {
-    //         matrix* input = new_matrix(225, 1);
-    //         strcpy(file_num_str, entry->d_name);
-    //         file_num_str[strlen(entry->d_name) - 7] = '\0';
-    //         file_num = atoi(entry->d_name);
-    //         strcpy(file_name, directory_path);
-    //         strcat(file_name, "/");
-    //         strcat(file_name, entry->d_name);
-    //         read_tensor(input, file_name);
-    //         CUDA_CHECK(cudaMalloc(&input->data, 255 * sizeof(float)));
-    //         // results[file_num] = infer(input);
-    //         CUDA_CHECK(cudaFree(input->data));
-    //         free(input);
-    //     }
-    // }
+    int file_num;
+    int size = 0;
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_REG) {
+            size++;
+        }
+    }
+    std::cout << "Done" << std::endl;
+    int* results = (int*)malloc((size + 1) * sizeof(int));
+    dir = opendir(directory_path);
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_REG) {
+            matrix* input = new_matrix(225, 1);
+            strcpy(file_num_str, entry->d_name);
+            file_num_str[strlen(entry->d_name) - 7] = '\0';
+            file_num = atoi(entry->d_name);
+            strcpy(file_name, directory_path);
+            strcat(file_name, "/");
+            strcat(file_name, entry->d_name);
+            read_tensor(input, file_name);
+            CUDA_CHECK(cudaMalloc(&d_input, 255 * sizeof(matrix)));
+            initmalloc(d_input, input, 1, 225);
+
+            dealloc(d_input);
+            results[file_num] = infer(input);
+            // CUDA_CHECK(cudaFree(input->data));
+
+            // free(input);
+        }
+    }
     // std::cout << "Exit" << std::endl;
 
     // free(file_name);

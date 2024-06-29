@@ -13,24 +13,53 @@ matrix* new_matrix(int rows, int cols) {
     return res;
 }
 __global__ void ptref(matrix* d_mat, float* d_res, int* d_cols, int* d_rows) {
+    // reference newly allocated device code address to the allocated matrix
     d_mat->data = d_res;
     d_mat->cols = *d_cols;
     d_mat->rows = *d_rows;
-    printf("Data: %p, Cols: %d, Rows: %d\n", d_mat->data, d_mat->cols, d_mat->rows);
-    printf("Done \n");
+    for (int i = 0; i < d_mat->rows * d_mat->cols; ++i) {
+        printf("data[%d] = %f\n", i, d_mat->data[i]);
+    }
+
+    printf("Done2 \n");
 }
 void initmalloc(matrix* d_mat, matrix* h_mat, int rows, int cols) {
+    // Allocate device memory for matrix dimensions and data
     int* d_cols;
     int* d_rows;
     float* d_res;
     cudaMalloc(&d_cols, sizeof(int));
     cudaMalloc(&d_rows, sizeof(int));
     cudaMalloc(&d_res, rows * cols * sizeof(float));
-    cudaMemcpy(d_rows, &(rows), sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_cols, &(cols), sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_res, &(h_mat->data), rows * cols * sizeof(float), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_rows, &rows, sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_cols, &cols, sizeof(int), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_res, (h_mat->data), (rows * cols * sizeof(float)), cudaMemcpyHostToDevice);
+
+    printf("Host Matrix Data:\n");
+    for (int i = 0; i < rows * cols; ++i) {
+        printf("data[%d] = %f\n", i, h_mat->data[i]);
+    }
+
+    // Call kernel to initialize the matrix structure on the device
     ptref<<<1, 1>>>(d_mat, d_res, d_cols, d_rows);
     cudaDeviceSynchronize();
+
+    // Deallocate device memory
+    // cudaFree(d_cols);
+    // cudaFree(d_rows);
+    // cudaFree(d_res);
+}
+
+void dealloc(matrix* d_mat) {
+    for (int i = 0; i < d_mat->cols * d_mat->rows; i++) {
+        cudaFree(&d_mat->data[i]);
+    }
+    cudaFree(&d_mat->cols);
+    cudaFree(&d_mat->rows);
+    cudaFree(d_mat->data);
+    cudaFree(d_mat);
 }
 // Loop unrolling optimisation with a factor of 8 which should be enough to saturate a Zen3 core
 void matrix_mul(const matrix* weights, const matrix* inputs, const matrix* __restrict__ result) {
