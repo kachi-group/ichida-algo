@@ -105,8 +105,9 @@ void read_tensor(matrix* a, const char* fileName) {
 }
 
 void propagate_fwd(const matrix* weights, const matrix* input_layer, matrix* output_layer, const matrix* biases) {
-    matrix_mul(weights, input_layer, output_layer);
-    matrix_add(output_layer, biases);
+    std::cout << "test" << std::endl;
+    // matrix_mul(weights, input_layer, output_layer);
+    // matrix_add(output_layer, biases);
 }
 
 // Get result from output layer
@@ -123,7 +124,8 @@ int get_max(matrix* a) {
 }
 
 int infer(matrix* input) {
-    matrix* mdl_layers[NUM_LAYERS];
+    matrix* mdl_layers[NUM_LAYERS]; // host
+    matrix* d_mdl_layers;           // device
     mdl_layers[0] = new_matrix(98, 1);
     mdl_layers[1] = new_matrix(65, 1);
     mdl_layers[2] = new_matrix(50, 1);
@@ -132,26 +134,28 @@ int infer(matrix* input) {
     mdl_layers[5] = new_matrix(40, 1);
     mdl_layers[6] = new_matrix(52, 1);
 
-    // CUDA_CHECK(cudaMalloc(&mdl_layers[0]->data, 98 * sizeof(float)));
-    // CUDA_CHECK(cudaMalloc(&mdl_layers[1]->data, 65 * sizeof(float)));
-    // CUDA_CHECK(cudaMalloc(&mdl_layers[2]->data, 50 * sizeof(float)));
-    // CUDA_CHECK(cudaMalloc(&mdl_layers[3]->data, 30 * sizeof(float)));
-    // CUDA_CHECK(cudaMalloc(&mdl_layers[4]->data, 25 * sizeof(float)));
-    // CUDA_CHECK(cudaMalloc(&mdl_layers[5]->data, 40 * sizeof(float)));
-    // CUDA_CHECK(cudaMalloc(&mdl_layers[6]->data, 52 * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&d_mdl_layers, NUM_LAYERS * sizeof(matrix)));
 
-    // propagate_fwd(weights[0], input, mdl_layers[0], biases[0]);
-    // relu(mdl_layers[0]);
-    // propagate_fwd(weights[1], mdl_layers[0], mdl_layers[1], biases[1]);
-    // relu(mdl_layers[1]);
-    // propagate_fwd(weights[2], mdl_layers[1], mdl_layers[2], biases[2]);
-    // relu(mdl_layers[2]);
-    // propagate_fwd(weights[3], mdl_layers[2], mdl_layers[3], biases[3]);
-    // relu(mdl_layers[3]);
-    // propagate_fwd(weights[4], mdl_layers[3], mdl_layers[4], biases[4]);
-    // relu(mdl_layers[4]);
-    // propagate_fwd(weights[5], mdl_layers[4], mdl_layers[5], biases[5]);
-    // relu(mdl_layers[5]);
+    initmalloc(&d_mdl_layers[0], mdl_layers[0], 98, 1);
+    initmalloc(&d_mdl_layers[1], mdl_layers[1], 65, 1);
+    initmalloc(&d_mdl_layers[2], mdl_layers[2], 50, 1);
+    initmalloc(&d_mdl_layers[3], mdl_layers[3], 30, 1);
+    initmalloc(&d_mdl_layers[4], mdl_layers[4], 25, 1);
+    initmalloc(&d_mdl_layers[5], mdl_layers[5], 40, 1);
+    initmalloc(&d_mdl_layers[6], mdl_layers[6], 52, 1);
+
+    // propagate_fwd(&d_weights[0], d_input, &d_mdl_layers[0], &d_biases[0]);
+    //  relu(mdl_layers[0]);
+    //  propagate_fwd(weights[1], mdl_layers[0], mdl_layers[1], biases[1]);
+    //  relu(mdl_layers[1]);
+    //  propagate_fwd(weights[2], mdl_layers[1], mdl_layers[2], biases[2]);
+    //  relu(mdl_layers[2]);
+    //  propagate_fwd(weights[3], mdl_layers[2], mdl_layers[3], biases[3]);
+    //  relu(mdl_layers[3]);
+    //  propagate_fwd(weights[4], mdl_layers[3], mdl_layers[4], biases[4]);
+    //  relu(mdl_layers[4]);
+    //  propagate_fwd(weights[5], mdl_layers[4], mdl_layers[5], biases[5]);
+    //  relu(mdl_layers[5]);
 
     // propagate_fwd(weights[6], mdl_layers[5], mdl_layers[6], biases[6]);
     // softmax(mdl_layers[6]);
@@ -240,10 +244,10 @@ int main(int argc, char* argv[]) {
             initmalloc(d_input, input, 1, 225);
 
             dealloc(d_input);
-            results[file_num] = infer(input);
-            // CUDA_CHECK(cudaFree(input->data));
+            // results[file_num] = infer(input);
+            //  CUDA_CHECK(cudaFree(input->data));
 
-            // free(input);
+            free(input);
         }
     }
     // std::cout << "Exit" << std::endl;

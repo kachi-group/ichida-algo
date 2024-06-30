@@ -23,6 +23,8 @@ __global__ void ptref(matrix* d_mat, float* d_res, int* d_cols, int* d_rows) {
 
     printf("Done2 \n");
 }
+
+// TODO: Kernel for matmul
 void initmalloc(matrix* d_mat, matrix* h_mat, int rows, int cols) {
     // Allocate device memory for matrix dimensions and data
     int* d_cols;
@@ -35,7 +37,7 @@ void initmalloc(matrix* d_mat, matrix* h_mat, int rows, int cols) {
     cudaMemcpy(d_rows, &rows, sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_cols, &cols, sizeof(int), cudaMemcpyHostToDevice);
 
-    cudaMemcpy(d_res, (h_mat->data), (rows * cols * sizeof(float)), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_res, h_mat->data, (rows * cols * sizeof(float)), cudaMemcpyHostToDevice);
 
     printf("Host Matrix Data:\n");
     for (int i = 0; i < rows * cols; ++i) {
@@ -53,12 +55,10 @@ void initmalloc(matrix* d_mat, matrix* h_mat, int rows, int cols) {
 }
 
 void dealloc(matrix* d_mat) {
-    for (int i = 0; i < d_mat->cols * d_mat->rows; i++) {
-        cudaFree(&d_mat->data[i]);
-    }
+    cudaFree(&d_mat->data);
     cudaFree(&d_mat->cols);
     cudaFree(&d_mat->rows);
-    cudaFree(d_mat->data);
+
     cudaFree(d_mat);
 }
 // Loop unrolling optimisation with a factor of 8 which should be enough to saturate a Zen3 core
