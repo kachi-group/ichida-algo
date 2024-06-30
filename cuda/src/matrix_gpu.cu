@@ -17,9 +17,6 @@ __global__ void ptref(matrix* d_mat, float* d_res, int* d_cols, int* d_rows) {
     d_mat->data = d_res;
     d_mat->cols = *d_cols;
     d_mat->rows = *d_rows;
-    for (int i = 0; i < d_mat->rows * d_mat->cols; ++i) {
-        printf("data[%d] = %f\n", i, d_mat->data[i]);
-    }
 
     printf("Done2 \n");
 }
@@ -39,11 +36,6 @@ void initmalloc(matrix* d_mat, matrix* h_mat, int rows, int cols) {
 
     cudaMemcpy(d_res, h_mat->data, (rows * cols * sizeof(float)), cudaMemcpyHostToDevice);
 
-    printf("Host Matrix Data:\n");
-    for (int i = 0; i < rows * cols; ++i) {
-        printf("data[%d] = %f\n", i, h_mat->data[i]);
-    }
-
     // Call kernel to initialize the matrix structure on the device
     ptref<<<1, 1>>>(d_mat, d_res, d_cols, d_rows);
     cudaDeviceSynchronize();
@@ -62,9 +54,11 @@ void dealloc(matrix* d_mat) {
     cudaFree(d_mat);
 }
 // Loop unrolling optimisation with a factor of 8 which should be enough to saturate a Zen3 core
-void matrix_mul(const matrix* weights, const matrix* inputs, const matrix* __restrict__ result) {
+__global__ void matrix_mul(matrix* weights, matrix* inputs, matrix* __restrict__ result) {
+
     int res_rows = result->rows;
     int w_width = weights->cols;
+    // printf("width=%d", weights->cols);
     float* w_data = weights->data;
     float* i_data = inputs->data;
 
@@ -105,39 +99,29 @@ void matrix_mul(const matrix* weights, const matrix* inputs, const matrix* __res
     }
 }
 
-// // Old version with no specific optimisation
-// void matrix_mul(const matrix* __restrict__ a, const matrix* __restrict__ b, const matrix* __restrict__ result) {
-//     int m = result->rows;
-//     int p = a->cols;
-//     for (int i = 0; i < m; i++) {
-//         float sum = 0;
-//         int h = i * p;
-//         for (int k = 0; k < p; k++) {
-//             sum += (a->data)[h + k] * ((b->data)[k]);
-//         }
-//         (result->data)[i] = sum;
-//     }
-// }
+__global__ void matrix_add(matrix* a, matrix* b) {
 
-void matrix_add(matrix* a, const matrix* b) {
     for (int i = 0; i < a->rows; i++) {
         (a->data)[i] += (b->data)[i];
     }
 }
 
-void relu(matrix* a) {
+__global__ void relu(matrix* a) {
     for (int i = 0; i < a->rows; i++) {
         if ((a->data)[i] < (float)0)
             (a->data)[i] = (float)0;
     }
 }
 
-void softmax(matrix* a) {
+__global__ void softmax(matrix* a) {
     float res = (float)0;
     for (int i = 0; i < a->rows; i++) {
         res += exp((a->data)[i]);
     }
     for (int i = 0; i < a->rows; i++) {
         (a->data)[i] /= res;
+    }
+    for (int i = 0; i < a->rows; i++) {
+        printf("softmax rows=%d cols =%d data=%f \n", a->rows, a->cols, (a->data)[i]);
     }
 }
