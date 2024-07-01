@@ -4,18 +4,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-#ifdef __ARM_ARCH_ISA_A64
-uint64_t rdtsc() {
-    uint64_t val;
-    __asm volatile("mrs %0, cntvct_el0" : "=r"(val));
-    return val;
-}
-
-#else
-#include <x86intrin.h>
-uint64_t rdtsc() { return __rdtsc(); }
-#endif
-
 typedef struct {
     float* data;
     int rows;

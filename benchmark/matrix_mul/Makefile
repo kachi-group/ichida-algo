@@ -1,5 +1,4 @@
-compile = gcc -Ofast -L/usr/local/lib -I/opt/homebrew/Cellar/openblas/0.3.27/include/ -lblas -march=native -ffast-math -funroll-loops -Wall -Wextra
-
+compile = gcc -O3 -march=native -ffast-math -funroll-loops -Wall -Wextra
 SRC_DIR := versions
 BIN_DIR := bin
 SRC_FILES := $(wildcard $(SRC_DIR)/*.c)
