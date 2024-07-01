@@ -12,6 +12,7 @@ matrix* new_matrix(int rows, int cols) {
     res->data = (float*)malloc((rows * cols) * sizeof(float));
     return res;
 }
+
 __global__ void ptref(matrix* d_mat, float* d_res, int* d_cols, int* d_rows) {
     d_mat->data = d_res;
     d_mat->cols = *d_cols;
@@ -44,6 +45,7 @@ void dealloc(matrix* d_mat) {
 
     cudaFree(d_mat);
 }
+
 // Loop unrolling optimisation with a factor of 8 which should be enough to saturate a Zen3 core
 __global__ void matrix_mul(matrix* weights, matrix* inputs, matrix* __restrict__ result) {
 

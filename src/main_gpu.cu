@@ -24,9 +24,6 @@ matrix* biases[NUM_LAYERS];
 matrix* d_weights;
 matrix* d_biases;
 matrix* d_input;
-// allocating device matrix for weights and biases
-// CUDA_CHECK(cudaMalloc(&d_weights, NUM_LAYERS * sizeof(matrix)));
-// CUDA_CHECK(cudaMalloc(&d_biases, NUM_LAYERS * sizeof(matrix)));
 
 char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 'G', 'g', 'H', 'h', 'I', 'i',
                     'J', 'j', 'K', 'k', 'L', 'l', 'M', 'm', 'N', 'n', 'O', 'o', 'P', 'p', 'Q', 'q', 'R', 'r',
@@ -104,15 +101,12 @@ void read_tensor(matrix* a, const char* fileName) {
 }
 
 void propagate_fwd(matrix* weights, matrix* input_layer, matrix* output_layer, matrix* biases) {
-    // everything here is device code
-    // matrix_mul(weights, input_layer, output_layer);
     matrix_mul<<<1, 1>>>(weights, input_layer, output_layer);
     cudaDeviceSynchronize();
     matrix_add<<<1, 1>>>(output_layer, biases);
     cudaDeviceSynchronize();
 }
 
-// Get result from output layer
 __global__ void get_max(matrix* a, int* d_int) {
     int idx = 0;
     float res = a->data[0];
@@ -126,9 +120,10 @@ __global__ void get_max(matrix* a, int* d_int) {
 }
 
 int infer(matrix* d_input) {
-    matrix* mdl_layers[NUM_LAYERS];    // host
-    matrix* d_mdl_layers;              // device
-    mdl_layers[0] = new_matrix(98, 1); // you may see garbage values as it is unitialized
+    matrix* mdl_layers[NUM_LAYERS];
+    matrix* d_mdl_layers;
+
+    mdl_layers[0] = new_matrix(98, 1);
     mdl_layers[1] = new_matrix(65, 1);
     mdl_layers[2] = new_matrix(50, 1);
     mdl_layers[3] = new_matrix(30, 1);
@@ -137,6 +132,7 @@ int infer(matrix* d_input) {
     mdl_layers[6] = new_matrix(52, 1);
 
     CUDA_CHECK(cudaMalloc(&d_mdl_layers, NUM_LAYERS * sizeof(matrix)));
+
     initmalloc(&d_mdl_layers[0], mdl_layers[0], 98, 1);
     initmalloc(&d_mdl_layers[1], mdl_layers[1], 65, 1);
     initmalloc(&d_mdl_layers[2], mdl_layers[2], 50, 1);
@@ -221,9 +217,11 @@ int main(int argc, char* argv[]) {
     biases[6] = new_matrix(52, 1);
 
     read_model(argv[1]);
+
     // initialize d_weights struct matrix arr;
     CUDA_CHECK(cudaMalloc(&d_weights, NUM_LAYERS * sizeof(matrix)));
     CUDA_CHECK(cudaMalloc(&d_biases, NUM_LAYERS * sizeof(matrix)));
+
     initmalloc(&d_weights[0], weights[0], 98, 225);
     initmalloc(&d_weights[1], weights[1], 65, 98);
     initmalloc(&d_weights[2], weights[2], 50, 65);
