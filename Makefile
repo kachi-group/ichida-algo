@@ -24,4 +24,10 @@ test: build
 	mv ./results.csv ./test
 	python3 ./test/verify_csv.py
 
+bench: build
+	./build/benchmark
+
+stat: build
+	python3 ./benchmark/stat.py
+
 
