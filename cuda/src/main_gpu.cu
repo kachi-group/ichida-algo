@@ -113,17 +113,16 @@ void propagate_fwd(matrix* weights, matrix* input_layer, matrix* output_layer, m
 }
 
 // Get result from output layer
-int get_max(matrix* a) {
+__global__ void get_max(matrix* a, int* d_int) {
     int idx = 0;
     float res = a->data[0];
     for (int i = 0; i < a->rows; i++) {
-
         if (res < a->data[i]) {
             res = a->data[i];
             idx = i;
         }
     }
-    return idx;
+    *d_int = idx;
 }
 
 int infer(matrix* d_input) {
@@ -149,47 +148,39 @@ int infer(matrix* d_input) {
     propagate_fwd(&d_weights[0], d_input, &d_mdl_layers[0], &d_biases[0]);
     relu<<<1, 1>>>(&d_mdl_layers[0]);
     cudaDeviceSynchronize();
+
     propagate_fwd(&d_weights[1], &d_mdl_layers[0], &d_mdl_layers[1], &d_biases[1]);
     relu<<<1, 1>>>(&d_mdl_layers[1]);
     cudaDeviceSynchronize();
+
     propagate_fwd(&d_weights[2], &d_mdl_layers[1], &d_mdl_layers[2], &d_biases[2]);
     relu<<<1, 1>>>(&d_mdl_layers[2]);
     cudaDeviceSynchronize();
+
     propagate_fwd(&d_weights[3], &d_mdl_layers[2], &d_mdl_layers[3], &d_biases[3]);
     relu<<<1, 1>>>(&d_mdl_layers[3]);
     cudaDeviceSynchronize();
+
     propagate_fwd(&d_weights[4], &d_mdl_layers[3], &d_mdl_layers[4], &d_biases[4]);
     relu<<<1, 1>>>(&d_mdl_layers[4]);
     cudaDeviceSynchronize();
+
     propagate_fwd(&d_weights[5], &d_mdl_layers[4], &d_mdl_layers[5], &d_biases[5]);
     relu<<<1, 1>>>(&d_mdl_layers[5]);
     cudaDeviceSynchronize();
+
     propagate_fwd(&d_weights[6], &d_mdl_layers[5], &d_mdl_layers[6], &d_biases[6]);
     softmax<<<1, 1>>>(&d_mdl_layers[6]);
     cudaDeviceSynchronize();
-    cudaMemcpy(mdl_layers[6], &d_mdl_layers[6], sizeof(matrix), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    cudaMemcpy(&mdl_layers[6]->rows, &d_mdl_layers[6].rows, sizeof(int), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    cudaMemcpy(&mdl_layers[6]->cols, &d_mdl_layers[6].cols, sizeof(int), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    std::cout << mdl_layers[6]->rows << " " << mdl_layers[6]->cols << std::endl;
-    float* temp;
-    cudaMemcpy(&temp, d_mdl_layers[6].data, 52 * 1 * sizeof(float),
-               cudaMemcpyDeviceToHost); // somethings wrong here
-    mdl_layers[6]->data = temp;
-    cudaMemcpy(&temp, d_mdl_layers[6].data, (rows * cols * sizeof(float)), cudaMemcpyHostToDevice);
 
-    // for (int i = 0; i < mdl_layers[6]->cols; i++) {
-    //     cudaMemcpy(&(mdl_layers[6]->data)[i], &(d_mdl_layers[6].data)[i],
-    //                mdl_layers[6]->cols * mdl_layers[6]->rows * sizeof(float), cudaMemcpyDeviceToHost);
-    // }
+    int* d_int;
+    int h_int = 0;
 
-    for (int i = 0; i < mdl_layers[6]->rows; i++) {
-        printf("some  rows=%d cols =%d data=%f \n", mdl_layers[6]->rows, mdl_layers[6]->cols,
-               (mdl_layers[6]->data)[i]); // this
-    }
-    exit(0);
+    CUDA_CHECK(cudaMalloc((void**)&d_int, sizeof(int)));
+    get_max<<<1, 1>>>(&d_mdl_layers[6], d_int);
+    cudaDeviceSynchronize();
+    CUDA_CHECK(cudaMemcpy(&h_int, d_int, sizeof(int), cudaMemcpyDeviceToHost));
+
     dealloc(&d_mdl_layers[0]);
     dealloc(&d_mdl_layers[1]);
     dealloc(&d_mdl_layers[2]);
@@ -198,9 +189,7 @@ int infer(matrix* d_input) {
     dealloc(&d_mdl_layers[5]);
     dealloc(&d_mdl_layers[6]);
 
-    return get_max(mdl_layers[6]);
-
-    return 0;
+    return h_int;
 }
 
 int main(int argc, char* argv[]) {
@@ -282,19 +271,12 @@ int main(int argc, char* argv[]) {
             read_tensor(input, file_name);
             CUDA_CHECK(cudaMalloc(&d_input, 255 * sizeof(matrix)));
             initmalloc(d_input, input, 1, 225);
-            std::cout << "Results: " << letters[infer(d_input)] << std::endl;
+            results[file_num] = infer(d_input);
             dealloc(d_input);
 
-            // results[file_num] = infer(input);
-            //  CUDA_CHECK(cudaFree(input->data));
-
             free(input);
-            // free(input->data);
-            // free(&input->cols);
-            // free(&input->rows);
         }
     }
-    std::cout << "Exit" << std::endl;
 
     free(file_name);
     free(file_num_str);

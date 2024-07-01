@@ -13,17 +13,13 @@ matrix* new_matrix(int rows, int cols) {
     return res;
 }
 __global__ void ptref(matrix* d_mat, float* d_res, int* d_cols, int* d_rows) {
-    // reference newly allocated device code address to the allocated matrix
     d_mat->data = d_res;
     d_mat->cols = *d_cols;
     d_mat->rows = *d_rows;
-
-    printf("Done2 \n");
 }
 
-// TODO: Kernel for matmul
+// Allocate device memory for matrix dimensions and data
 void initmalloc(matrix* d_mat, matrix* h_mat, int rows, int cols) {
-    // Allocate device memory for matrix dimensions and data
     int* d_cols;
     int* d_rows;
     float* d_res;
@@ -39,11 +35,6 @@ void initmalloc(matrix* d_mat, matrix* h_mat, int rows, int cols) {
     // Call kernel to initialize the matrix structure on the device
     ptref<<<1, 1>>>(d_mat, d_res, d_cols, d_rows);
     cudaDeviceSynchronize();
-
-    // Deallocate device memory
-    // cudaFree(d_cols);
-    // cudaFree(d_rows);
-    // cudaFree(d_res);
 }
 
 void dealloc(matrix* d_mat) {
@@ -58,7 +49,6 @@ __global__ void matrix_mul(matrix* weights, matrix* inputs, matrix* __restrict__
 
     int res_rows = result->rows;
     int w_width = weights->cols;
-    // printf("width=%d", weights->cols);
     float* w_data = weights->data;
     float* i_data = inputs->data;
 
@@ -73,8 +63,7 @@ __global__ void matrix_mul(matrix* weights, matrix* inputs, matrix* __restrict__
         float sum5 = 0;
         float sum6 = 0;
         float sum7 = 0;
-        // float sum8 = 0;
-        // float sum9 = 0;
+
         int row_offs = cur_row * w_width;
 
         int k = 0;
@@ -87,8 +76,6 @@ __global__ void matrix_mul(matrix* weights, matrix* inputs, matrix* __restrict__
             sum5 += w_data[row_offs + k + 5] * i_data[k + 5];
             sum6 += w_data[row_offs + k + 6] * i_data[k + 6];
             sum7 += w_data[row_offs + k + 7] * i_data[k + 7];
-            // sum8 += w_data[row_offs + k + 8] * i_data[k + 8];
-            // sum9 += w_data[row_offs + k + 9] * i_data[k + 9];
         }
 
         for (; k < w_width; k++) {
@@ -120,8 +107,5 @@ __global__ void softmax(matrix* a) {
     }
     for (int i = 0; i < a->rows; i++) {
         (a->data)[i] /= res;
-    }
-    for (int i = 0; i < a->rows; i++) {
-        printf("softmax rows=%d cols =%d data=%f \n", a->rows, a->cols, (a->data)[i]);
     }
 }
