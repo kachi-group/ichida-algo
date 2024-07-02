@@ -5,9 +5,9 @@ project(ichida-algo)
 
 set(CMAKE_C_FLAGS "-O3 -march=native -ffast-math -funroll-loops -Wall -Wextra")
 
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED True)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+# set(CMAKE_VERBOSE_MAKEFILE ON)
 
 set(SRC_DIR src)
 set(INC_DIR include)
@@ -21,10 +21,10 @@ file(GLOB_RECURSE SOURCE_FILES ${SRC_DIR}/*.c)
 include_directories(include)
 
 add_executable(speed_cpu ${SOURCE_FILES})
-add_executable(benchmark ${SRC_DIR}/matrix.c ${BENCHMARK_DIR}/benchmark.c)
+# add_executable(benchmark ${SRC_DIR}/matrix.c ${BENCHMARK_DIR}/benchmark.c)
 
 target_link_libraries(speed_cpu m)
-target_link_libraries(benchmark m)
+# target_link_libraries(benchmark m)
 
 
 
