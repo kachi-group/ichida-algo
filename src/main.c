@@ -1,140 +1,187 @@
-#include "../include/matrix.h"
+#include "matrix.h"
+#include "util.h"
+#include "file_io.h"
 #include <dirent.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 
+typedef float f32;
+typedef unsigned char u8;
+
 #define NUM_LAYERS 7
 
+#define TENSOR_SIZE 225
+#define TSIZE_ALGN_BYTES (((TENSOR_SIZE + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN) * sizeof(f32))
+
 matrix* weights[NUM_LAYERS];
-matrix* biases[NUM_LAYERS];
+vector* biases[NUM_LAYERS];
 
 char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 'G', 'g', 'H', 'h', 'I', 'i',
                     'J', 'j', 'K', 'k', 'L', 'l', 'M', 'm', 'N', 'n', 'O', 'o', 'P', 'p', 'Q', 'q', 'R', 'r',
                     'S', 's', 'T', 't', 'U', 'u', 'V', 'v', 'W', 'w', 'X', 'x', 'Y', 'y', 'Z', 'z'};
 
-void process_weights_str(char* line, int layer) {
-    char* token;
-    float value;
-    const char* delimiter = ",";
-
-    token = strtok(line, delimiter);
-    int n = (weights[layer]->rows) * (weights[layer]->cols);
-    for (int i = 0; i < n; i++) {
-        value = strtof(token, NULL);
-        (weights[layer]->data)[i] = value;
-        token = strtok(NULL, delimiter);
-    }
+void propagate_fwd(const matrix* weights, const vector* inputs, vector* results, const vector* biases) {
+    sgemv_t_tuned(weights->data, inputs->data, results->data, weights->cols, weights->rows);
+    // Add biases onto results
+    vector_add_inplace(results->len, biases->data, results->data);
 }
 
-void process_biases_str(char* line, int layer) {
-    char* token;
-    float value;
-    const char* delimiter = ",";
 
-    token = strtok(line, delimiter);
 
-    int n = biases[layer]->rows;
-    for (int i = 0; i < n; i++) {
-        value = strtof(token, NULL);
-        (biases[layer]->data)[i] = value;
-        token = strtok(NULL, delimiter);
-    }
+u8 infer(vector* input) {
+    vector* outputs[NUM_LAYERS];
+    outputs[0] = new_vec_aligned(98);
+    outputs[1] = new_vec_aligned(65);
+    outputs[2] = new_vec_aligned(50);
+    outputs[3] = new_vec_aligned(30);
+    outputs[4] = new_vec_aligned(25);
+    outputs[5] = new_vec_aligned(40);
+    outputs[6] = new_vec_aligned(52);
+
+    propagate_fwd(weights[0], input, outputs[0], biases[0]);
+    relu_inplace(outputs[0]->data, 98); 
+    propagate_fwd(weights[1], outputs[0], outputs[1], biases[1]);
+    relu_inplace(outputs[1]->data, 65);
+    propagate_fwd(weights[2], outputs[1], outputs[2], biases[2]);
+    relu_inplace(outputs[2]->data, 50);
+    propagate_fwd(weights[3], outputs[2], outputs[3], biases[3]);
+    relu_inplace(outputs[3]->data, 30);
+    propagate_fwd(weights[4], outputs[3], outputs[4], biases[4]);
+    relu_inplace(outputs[4]->data, 25);
+    propagate_fwd(weights[5], outputs[4], outputs[5], biases[5]);
+    relu_inplace(outputs[5]->data, 40);
+    propagate_fwd(weights[6], outputs[5], outputs[6], biases[6]);
+    softmax_inplace(outputs[6]->data, 52);
+
+    u8 pred = get_max(outputs[6]);
+    
+    free(outputs[0]->data);
+    free(outputs[0]);
+    free(outputs[1]->data);
+    free(outputs[1]);
+    free(outputs[2]->data);
+    free(outputs[2]);
+    free(outputs[3]->data);
+    free(outputs[3]);
+    free(outputs[4]->data);
+    free(outputs[4]);
+    free(outputs[5]->data);
+    free(outputs[5]);
+    free(outputs[6]->data);
+    free(outputs[6]);
+
+    return pred;
 }
 
-void read_model(const char* file_name) {
-    FILE* file = fopen(file_name, "r");
+u8 infer_reuse_layers(vector* input) {
+    vector* outputs[NUM_LAYERS];
+    outputs[0] = new_vec_aligned(98);
+    outputs[1] = new_vec_aligned(65);
 
-    char* line = NULL;
-    size_t len = 0;
-    int line_number = 0;
-    int layer = 0;
+    propagate_fwd(weights[0], input, outputs[0], biases[0]);
+    relu_inplace(outputs[0]->data, 98);
+    propagate_fwd(weights[1], outputs[0], outputs[1], biases[1]);
+    relu_inplace(outputs[1]->data, 65);
 
-    while ((getline(&line, &len, file)) != -1) {
-        if ((line_number - 1) % 4 == 0) {
-            process_weights_str(line, layer);
-        } else if ((line_number - 3) % 4 == 0) {
-            process_biases_str(line, layer);
-            layer++;
-        }
-        line_number++;
-    }
+    outputs[0]->len = 50;
+    memset(outputs[0]->data, 0, 50 * sizeof(f32));
 
-    free(line);
-    fclose(file);
+    propagate_fwd(weights[2], outputs[1], outputs[0], biases[2]);
+    relu_inplace(outputs[0]->data, 50);
+
+    outputs[1]->len = 30;
+    memset(outputs[1]->data, 0, 30 * sizeof(f32));
+
+    propagate_fwd(weights[3], outputs[0], outputs[1], biases[3]);
+    relu_inplace(outputs[1]->data, 30);
+
+    outputs[0]->len = 25;
+    memset(outputs[0]->data, 0, 25 * sizeof(f32));
+
+    propagate_fwd(weights[4], outputs[1], outputs[0], biases[4]);
+    relu_inplace(outputs[0]->data, 25);
+
+    outputs[1]->len = 40;
+    memset(outputs[1]->data, 0, 40 * sizeof(f32));
+
+    propagate_fwd(weights[5], outputs[0], outputs[1], biases[5]);
+    relu_inplace(outputs[1]->data, 40);
+
+    outputs[0]->len = 52;
+    memset(outputs[0]->data, 0, 52 * sizeof(f32));
+
+    propagate_fwd(weights[6], outputs[1], outputs[0], biases[6]);
+    softmax_inplace(outputs[0]->data, 52);
+
+    u8 pred = get_max(outputs[0]);
+    
+    free(outputs[0]->data);
+    free(outputs[0]);
+    free(outputs[1]->data);
+    free(outputs[1]);
+
+    return pred;
 }
 
-void read_tensor(matrix* a, const char* fileName) {
-    FILE* file = fopen(fileName, "r");
-    char* line = NULL;
-    size_t len = 0;
+u8 infer_reuse_input (vector* input) {
+    vector* outputs[NUM_LAYERS];
+    outputs[0] = new_vec_aligned(98);
 
-    getline(&line, &len, file);
-    char* token;
-    float value;
-    const char* delimiter = ",";
-    token = strtok(line, delimiter);
+    propagate_fwd(weights[0], input, outputs[0], biases[0]);
+    relu_inplace(outputs[0]->data, 98);
 
-    for (int i = 0; i < 225; i++) {
-        value = strtof(token, NULL);
-        (a->data)[i] = value;
-        token = strtok(NULL, delimiter);
-    }
-    free(line);
-    fclose(file);
-}
+    input->len = 65;
+    memset(input->data, 0, 65 * sizeof(f32));
 
-void propagate_fwd(const matrix* weights, const matrix* input_layer, matrix* output_layer, const matrix* biases) {
-    matrix_mul(weights, input_layer, output_layer);
-    matrix_add(output_layer, biases);
-}
+    propagate_fwd(weights[1], outputs[0], input, biases[1]);
+    relu_inplace(input->data, 65);
 
-// Get result from output layer
-int get_max(matrix* a) {
-    int idx = 0;
-    float res = (a->data)[0];
-    for (int i = 0; i < a->rows; i++) {
-        if (res < (a->data)[i]) {
-            res = (a->data)[i];
-            idx = i;
-        }
-    }
-    return idx;
-}
+    outputs[0]->len = 50;
+    memset(outputs[0]->data, 0, 50 * sizeof(f32));
 
-int infer(matrix* input) {
-    matrix* mdl_layers[NUM_LAYERS];
-    mdl_layers[0] = new_matrix(98, 1);
-    mdl_layers[1] = new_matrix(65, 1);
-    mdl_layers[2] = new_matrix(50, 1);
-    mdl_layers[3] = new_matrix(30, 1);
-    mdl_layers[4] = new_matrix(25, 1);
-    mdl_layers[5] = new_matrix(40, 1);
-    mdl_layers[6] = new_matrix(52, 1);
+    propagate_fwd(weights[2], input, outputs[0], biases[2]);
+    relu_inplace(outputs[0]->data, 50);
 
-    propagate_fwd(weights[0], input, mdl_layers[0], biases[0]);
-    relu(mdl_layers[0]);
-    propagate_fwd(weights[1], mdl_layers[0], mdl_layers[1], biases[1]);
-    relu(mdl_layers[1]);
-    propagate_fwd(weights[2], mdl_layers[1], mdl_layers[2], biases[2]);
-    relu(mdl_layers[2]);
-    propagate_fwd(weights[3], mdl_layers[2], mdl_layers[3], biases[3]);
-    relu(mdl_layers[3]);
-    propagate_fwd(weights[4], mdl_layers[3], mdl_layers[4], biases[4]);
-    relu(mdl_layers[4]);
-    propagate_fwd(weights[5], mdl_layers[4], mdl_layers[5], biases[5]);
-    relu(mdl_layers[5]);
+    input->len = 30;
+    memset(input->data, 0, 30 * sizeof(f32));
 
-    propagate_fwd(weights[6], mdl_layers[5], mdl_layers[6], biases[6]);
-    softmax(mdl_layers[6]);
+    propagate_fwd(weights[3], outputs[0], input, biases[3]);
+    relu_inplace(input->data, 30);
 
-    return get_max(mdl_layers[6]);
+    outputs[0]->len = 25;
+    memset(outputs[0]->data, 0, 25 * sizeof(f32));
+
+    propagate_fwd(weights[4], input, outputs[0], biases[4]);
+    relu_inplace(outputs[0]->data, 25);
+
+    input->len = 40;
+    memset(input->data, 0, 40 * sizeof(f32));
+
+    propagate_fwd(weights[5], outputs[0], input, biases[5]);
+    relu_inplace(input->data, 40);
+
+    outputs[0]->len = 52;
+    memset(outputs[0]->data, 0, 52 * sizeof(f32));
+
+    propagate_fwd(weights[6], input, outputs[0], biases[6]);
+    softmax_inplace(outputs[0]->data, 52);
+
+    u8 pred = get_max(outputs[0]);
+    
+    free(outputs[0]->data);
+    free(outputs[0]);
+
+    input->len = 225;
+
+    return pred;
 }
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        printf("Not enough arguments.");
+        printf("Not enough arguments. Usage: speed_cpu <path_to_model.txt> <tensors_dir/>");
         return EXIT_FAILURE;
     }
 
@@ -142,69 +189,73 @@ int main(int argc, char* argv[]) {
     struct timeval stop, start;
     gettimeofday(&start, NULL);
 
-    // TODO: find a way to load static weights and biases
-    // Load model (The memory of those code should be initialize during compile time to enchance the speed)
-    weights[0] = new_matrix(98, 225);
-    weights[1] = new_matrix(65, 98);
-    weights[2] = new_matrix(50, 65);
-    weights[3] = new_matrix(30, 50);
-    weights[4] = new_matrix(25, 30);
-    weights[5] = new_matrix(40, 25);
-    weights[6] = new_matrix(52, 40);
+    // Dimensions of target model are hardcoded
+    weights[0] = new_matrix_aligned(98, 225);
+    weights[1] = new_matrix_aligned(65, 98);
+    weights[2] = new_matrix_aligned(50, 65);
+    weights[3] = new_matrix_aligned(30, 50);
+    weights[4] = new_matrix_aligned(25, 30);
+    weights[5] = new_matrix_aligned(40, 25);
+    weights[6] = new_matrix_aligned(52, 40);
 
-    biases[0] = new_matrix(98, 1);
-    biases[1] = new_matrix(65, 1);
-    biases[2] = new_matrix(50, 1);
-    biases[3] = new_matrix(30, 1);
-    biases[4] = new_matrix(25, 1);
-    biases[5] = new_matrix(40, 1);
-    biases[6] = new_matrix(52, 1);
+    biases[0] = new_vec_aligned(98);
+    biases[1] = new_vec_aligned(65);
+    biases[2] = new_vec_aligned(50);
+    biases[3] = new_vec_aligned(30);
+    biases[4] = new_vec_aligned(25);
+    biases[5] = new_vec_aligned(40);
+    biases[6] = new_vec_aligned(52);
 
-    read_model(argv[1]);
+    vector* input = new_vec_aligned(TENSOR_SIZE);
 
-    // Run program
+    read_model(weights, biases, argv[1]);
+
+    // Transpose weights to column major
+    for (int i = 0; i < NUM_LAYERS; i++) transpose_mat_inplace(weights[i]);
+
     const char* directory_path = argv[2];
+    int input_count = file_count(directory_path);
+    printf("Number of input tensors: %d\n", input_count);
+
+    // +1 because file idx starts at 1
+    u8* results = (u8*)malloc(input_count * sizeof(u8));
+    f32* tensors = (f32*)aligned_alloc(SIMD_ALGN, TSIZE_ALGN_BYTES * input_count);
+    
+    // Read and process inputs
+    char* file_path = (char*)malloc((256) * sizeof(char));
+    char* file_num_str = (char*)malloc((50) * sizeof(char));
+
     struct dirent* entry;
     DIR* dir = opendir(directory_path);
-
-    matrix* input = new_matrix(225, 1);
-
-    // Read and process inputs
-    char* file_name = (char*)malloc((100) * sizeof(char));
-    char* file_num_str = (char*)malloc((100) * sizeof(char));
-
-    int file_num;
-    int size = 0;
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            size++;
-        }
-    }
-
-    int* results = (int*)malloc((size + 1) * sizeof(int));
-    dir = opendir(directory_path);
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
             strcpy(file_num_str, entry->d_name);
             file_num_str[strlen(entry->d_name) - 7] = '\0';
-            file_num = atoi(entry->d_name);
-            strcpy(file_name, directory_path);
-            strcat(file_name, "/");
-            strcat(file_name, entry->d_name);
-            read_tensor(input, file_name);
-            results[file_num] = infer(input);
+            int file_num = atoi(entry->d_name);
+            strcpy(file_path, directory_path);
+            strcat(file_path, "/");
+            strcat(file_path, entry->d_name);
+            read_tensor((f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * (file_num - 1)], file_path);
         }
     }
-
-    free(file_name);
-    free(file_num_str);
     closedir(dir);
+    free(file_path);
+    free(file_num_str);
+
+
+
+    // Run inference
+    for (int i = 0; i < input_count; i++) {
+        input->data = (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i];
+        // for (int i = 0; i < 100000; i++)
+            results[i] = infer_reuse_layers(input);
+    }
 
     // Write to csv file
     FILE* csv_file = fopen("results.csv", "w+");
     fprintf(csv_file, "image_number, guess\n");
-    for (int i = 1; i <= size; i++) {
-        fprintf(csv_file, "%d, %c\n", i, letters[results[i]]);
+    for (int i = 0; i < input_count; i++) {
+        fprintf(csv_file, "%d, %c\n", i + 1, letters[results[i]]);
     }
     fclose(csv_file);
 
