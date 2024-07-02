@@ -15,7 +15,8 @@ matrix* new_matrix_aligned(int rows, int cols) {
     new_mat->cols = cols;
 
     // Align entire array for simd access and better cache line utilisation
-    new_mat->data = (f32*)aligned_alloc(SIMD_ALGN, (((kern_align_f32 * sizeof(f32)) + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN));
+    new_mat->data =
+        (f32*)aligned_alloc(SIMD_ALGN, (((kern_align_f32 * sizeof(f32)) + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN));
 
     return new_mat;
 }
@@ -29,9 +30,10 @@ vector* new_vec_aligned(int len) {
     new_vec->len = len;
 
     // Align entire array for simd access and better cache line utilisation
-    new_vec->data = (f32*)aligned_alloc(SIMD_ALGN, (((kern_align_f32 * sizeof(f32)) + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN));
+    new_vec->data =
+        (f32*)aligned_alloc(SIMD_ALGN, (((kern_align_f32 * sizeof(f32)) + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN));
 
-    memset(new_vec->data, 0, kern_align_f32 * sizeof(f32)); 
+    memset(new_vec->data, 0, kern_align_f32 * sizeof(f32));
 
     return new_vec;
 }
@@ -52,8 +54,7 @@ static void kernel(const float* in, const float* wg, float* rs, int start_row, i
 // Ver. Artemis Rosman
 // W rows and W width is expected to be for the column major matrix, i.e. len of
 // in vec = w_rows, len of out vec = w_cols
-void sgemv_t_tuned(const float* weights, const float* inputs, float* __restrict__ results,
-                                                int w_width, int w_rows) {
+void sgemv_t_tuned(const float* weights, const float* inputs, float* __restrict__ results, int w_width, int w_rows) {
     // Perform mult using kernel
     for (int row = 0; row < w_rows; row += KERN_ROWS) {
         for (int col = 0; col < w_width; col += KERN_COLS) {
@@ -85,27 +86,6 @@ void softmax_inplace(f32* dest, int len) {
     }
 }
 
-void transpose_resize(f32* mat_data, int cols, int rows) {
-    f32* transposed = (f32*)malloc(cols * rows * sizeof(int));
-    if (transposed == NULL) {
-        printf("Memory allocation failed.\n");
-        return;
-    }
-
-    for (int r = 0; r < rows; ++r) {
-        for (int c = 0; c < cols; ++c) {
-            transposed[c * rows + r] = mat_data[r * cols + c];
-        }
-    }
-
-    // Copy transposed matrix back to original matrix array
-    for (int i = 0; i < cols * rows; ++i) {
-        mat_data[i] = transposed[i];
-    }
-
-    free(transposed);
-}
-
 void transpose_mat_inplace(matrix* in) {
     int cols_before = in->cols;
     int rows_before = in->rows;
@@ -113,7 +93,8 @@ void transpose_mat_inplace(matrix* in) {
     // Swapped for transpose
     int pad_w_rows = (cols_before + KERN_ROWS - 1) / KERN_ROWS * KERN_ROWS;
     int pad_w_width = (rows_before + KERN_COLS - 1) / KERN_COLS * KERN_COLS;
-    f32* transposed = (f32*)aligned_alloc(SIMD_ALGN, (((pad_w_rows * pad_w_width * sizeof(f32)) + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN));
+    f32* transposed = (f32*)aligned_alloc(
+        SIMD_ALGN, (((pad_w_rows * pad_w_width * sizeof(f32)) + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN));
     memset(transposed, 0, pad_w_rows * pad_w_width * sizeof(f32));
 
     for (int row = 0; row < rows_before; row++) {

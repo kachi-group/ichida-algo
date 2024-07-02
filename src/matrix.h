@@ -23,8 +23,7 @@ vector* new_vec_aligned(int len);
 matrix* new_matrix_aligned(int rows, int cols);
 
 // Aligned SIMD tuned matmul that assumes column major pre-transposed
-void sgemv_t_tuned(const f32* weights, const f32* inputs, f32* __restrict__ results, int w_cols,
-                    int w_rows);
+void sgemv_t_tuned(const f32* weights, const f32* inputs, f32* __restrict__ results, int w_cols, int w_rows);
 
 void vector_add_inplace(int len, const f32* src, f32* dest);
 

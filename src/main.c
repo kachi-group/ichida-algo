@@ -1,6 +1,6 @@
+#include "file_io.h"
 #include "matrix.h"
 #include "util.h"
-#include "file_io.h"
 #include <dirent.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -29,8 +29,6 @@ void propagate_fwd(const matrix* weights, const vector* inputs, vector* results,
     vector_add_inplace(results->len, biases->data, results->data);
 }
 
-
-
 u8 infer(vector* input) {
     vector* outputs[NUM_LAYERS];
     outputs[0] = new_vec_aligned(98);
@@ -42,7 +40,7 @@ u8 infer(vector* input) {
     outputs[6] = new_vec_aligned(52);
 
     propagate_fwd(weights[0], input, outputs[0], biases[0]);
-    relu_inplace(outputs[0]->data, 98); 
+    relu_inplace(outputs[0]->data, 98);
     propagate_fwd(weights[1], outputs[0], outputs[1], biases[1]);
     relu_inplace(outputs[1]->data, 65);
     propagate_fwd(weights[2], outputs[1], outputs[2], biases[2]);
@@ -57,7 +55,7 @@ u8 infer(vector* input) {
     softmax_inplace(outputs[6]->data, 52);
 
     u8 pred = get_max(outputs[6]);
-    
+
     free(outputs[0]->data);
     free(outputs[0]);
     free(outputs[1]->data);
@@ -117,7 +115,7 @@ u8 infer_reuse_layers(vector* input) {
     softmax_inplace(outputs[0]->data, 52);
 
     u8 pred = get_max(outputs[0]);
-    
+
     free(outputs[0]->data);
     free(outputs[0]);
     free(outputs[1]->data);
@@ -126,7 +124,7 @@ u8 infer_reuse_layers(vector* input) {
     return pred;
 }
 
-u8 infer_reuse_input (vector* input) {
+u8 infer_reuse_input(vector* input) {
     vector* outputs[NUM_LAYERS];
     outputs[0] = new_vec_aligned(98);
 
@@ -170,7 +168,7 @@ u8 infer_reuse_input (vector* input) {
     softmax_inplace(outputs[0]->data, 52);
 
     u8 pred = get_max(outputs[0]);
-    
+
     free(outputs[0]->data);
     free(outputs[0]);
 
@@ -211,7 +209,8 @@ int main(int argc, char* argv[]) {
     read_model(weights, biases, argv[1]);
 
     // Transpose weights to column major
-    for (int i = 0; i < NUM_LAYERS; i++) transpose_mat_inplace(weights[i]);
+    for (int i = 0; i < NUM_LAYERS; i++)
+        transpose_mat_inplace(weights[i]);
 
     const char* directory_path = argv[2];
     int input_count = file_count(directory_path);
@@ -220,7 +219,7 @@ int main(int argc, char* argv[]) {
     // +1 because file idx starts at 1
     u8* results = (u8*)malloc(input_count * sizeof(u8));
     f32* tensors = (f32*)aligned_alloc(SIMD_ALGN, TSIZE_ALGN_BYTES * input_count);
-    
+
     // Read and process inputs
     char* file_path = (char*)malloc((256) * sizeof(char));
     char* file_num_str = (char*)malloc((50) * sizeof(char));
@@ -242,13 +241,11 @@ int main(int argc, char* argv[]) {
     free(file_path);
     free(file_num_str);
 
-
-
     // Run inference
     for (int i = 0; i < input_count; i++) {
         input->data = (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i];
         // for (int i = 0; i < 100000; i++)
-            results[i] = infer_reuse_layers(input);
+        results[i] = infer_reuse_layers(input);
     }
 
     // Write to csv file

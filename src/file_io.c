@@ -1,8 +1,8 @@
 #include "matrix.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 int file_count(const char* dir_path) {
     struct dirent* entry;
