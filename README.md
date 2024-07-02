@@ -17,13 +17,14 @@ Development involves:
 - Programming in **CUDA**
 - **MPI** (Message-Passing Interface) for multi-GPU utilisation
 
-We decided to go down this path because it sounded like some high risk, high reward excitement. Before starting out, we didn't know almost anything about low level optimisations, so it has been a real learning-on-the-job situation!
+We decided to go down this path because it sounded like some high risk, high reward excitement. Before starting out, we didn't know almost anything about low level optimisations, so it has been a real 'learning-on-the-job' kind of situation!
 
 ## Team members
 All team members are from RMIT.
 ### Artemis Rosman - **rozukke**
 - Project management
-- CPU optimisation (loops, asm, SIMD)
+- CPU optimisation (AVX2/SIMD, asm, memory)
+- Cleanup/rewrites/profiling
 - Code review
 - Communication
 - Design
@@ -32,7 +33,8 @@ All team members are from RMIT.
 ### Dan Dang - **nhatdongdang**
 - Core implementation in C
 - Testing and timing
-- CPU optimisation (multithread)
+- CPU optimisation (multithread, AVX2/SIMD)
+- GPU optimisation
 - Code review
 - CI
 - A lot of textbook reading
@@ -41,8 +43,3 @@ All team members are from RMIT.
 - Core implementation in CUDA
 - CPU optimisation (SIMD)
 - A lot of textbook reading
-
-## Scripts
-Run file copier script using:
- - `python3 script/filemaker.py --src-folder ./tensors --total <FILE_NUM>`
- - Add `--cleanup` at the end to delete files beyond the original 52
