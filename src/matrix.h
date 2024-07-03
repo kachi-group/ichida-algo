@@ -34,4 +34,4 @@ void softmax_inplace(f32* dest, int len);
 
 void transpose_mat_inplace(matrix* in);
 
-u8 getv_max_i(f32* a, int len);
+u8 argmax(f32* a, int len);

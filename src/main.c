@@ -57,7 +57,7 @@ u8 infer(vector* input) {
     propagate_fwd(weights[6], outputs[5], outputs[6], biases[6]);
     softmax_inplace(outputs[6]->data, 52);
 
-    u8 pred = getv_max_i(outputs[6]->data, 52);
+    u8 pred = argmax(outputs[6]->data, 52);
 
     free(outputs[0]->data);
     free(outputs[0]);
@@ -119,7 +119,7 @@ u8 infer_reuse_layers_thread(vector* input, matrix** weights, vector** biases) {
     propagate_fwd(weights[6], outputs[1], outputs[0], biases[6]);
     softmax_inplace(outputs[0]->data, 52);
 
-    u8 prediction = getv_max_i(outputs[0]->data, 52);
+    u8 prediction = argmax(outputs[0]->data, 52);
 
     free(outputs[0]->data);
     free(outputs[0]);
@@ -165,7 +165,9 @@ int main(int argc, char* argv[]) {
     // Set up preliminary counts and data
     const char* directory_path = argv[2];
     int input_count = file_count(directory_path);
+    int iter_per_in = atoi(argv[3]);
     printf("Number of input tensors: %d\n", input_count);
+    printf("Iterations per input: %d\n", iter_per_in);
 
     f32* tensors = (f32*)aligned_alloc(SIMD_ALGN, TSIZE_ALGN_BYTES * input_count);
 
@@ -195,7 +197,6 @@ int main(int argc, char* argv[]) {
     printf("Pre inference (model read, tensor read, transpose) took %lu us\n",
            (preinf.tv_sec - start.tv_sec) * 1000000 + preinf.tv_usec - start.tv_usec);
 
-    int iter_per_in = atoi(argv[3]);
     // int NUM_THREADS = sysconf(_SC_NPROCESSORS_ONLN);
 
     if (iter_per_in > 1)

@@ -120,7 +120,7 @@ void transpose_mat_inplace(matrix* in) {
 }
 
 // Get result from output layer
-u8 getv_max_i(f32* in, int len) {
+u8 argmax(f32* in, int len) {
     int idx = 0;
     float res = in[0];
     for (int i = 0; i < len; i++) {
