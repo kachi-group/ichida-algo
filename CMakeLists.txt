@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # Set the project name
 project(ichida-algo)
 
-set(CMAKE_C_FLAGS "-O3 -march=native -ffast-math -funroll-loops -Wall -Wextra")
+set(CMAKE_C_FLAGS "-O3 -march=native -ffast-math -funroll-loops -fopenmp -Wall -Wextra")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED True)
@@ -23,7 +23,7 @@ include_directories(include)
 add_executable(speed_cpu ${SOURCE_FILES})
 # add_executable(benchmark ${SRC_DIR}/matrix.c ${BENCHMARK_DIR}/benchmark.c)
 
-target_link_libraries(speed_cpu m)
+target_link_libraries(speed_cpu m pthread)
 # target_link_libraries(benchmark m)
 
 
