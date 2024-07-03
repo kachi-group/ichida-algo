@@ -198,6 +198,7 @@ int main(int argc, char* argv[]) {
     int iter_per_in = atoi(argv[3]);
     // int NUM_THREADS = sysconf(_SC_NPROCESSORS_ONLN);
 
+    if (iter_per_in > 1)
 #pragma omp parallel
     {
         int force = 0;

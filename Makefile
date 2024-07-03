@@ -1,6 +1,6 @@
 .PHONY: all test clean run build run_test
 
-all: build
+all: rebuild
 
 clean:
 	rm -f test/results.csv
@@ -8,12 +8,12 @@ clean:
 	rm -rf build
 	rm -f speed_cpu
 
-build:
+build: clean
+	cmake -Bbuild
 	$(MAKE) -C ./build
 	mv ./build/speed_cpu ./
     
-rebuild: clean
-	cmake -Bbuild
+rebuild:
 	$(MAKE) -C ./build
 	mv ./build/speed_cpu ./
 
@@ -23,7 +23,7 @@ run: build
 run_test: build
 	./speed_cpu ./weights_and_biases.txt ./tensors
 
-test: rebuild
+test: build
 	./speed_cpu ./weights_and_biases.txt ./tensors 1
 	mv ./results.csv ./test
 	python3 ./test/verify_csv.py
