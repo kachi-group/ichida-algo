@@ -2,9 +2,10 @@
 
 typedef float f32;
 typedef unsigned char u8;
+typedef signed long i64;
 
 #define KERN_COLS 8
-#define KERN_ROWS 4
+#define KERN_ROWS 2
 #define SIMD_ALGN 64
 
 typedef struct vector {
@@ -33,4 +34,4 @@ void softmax_inplace(f32* dest, int len);
 
 void transpose_mat_inplace(matrix* in);
 
-u8 get_max(vector* a);
+u8 getv_max_i(f32* a, int len);

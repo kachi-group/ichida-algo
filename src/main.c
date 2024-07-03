@@ -3,10 +3,12 @@
 #include "util.h"
 #include <dirent.h>
 #include <inttypes.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 typedef float f32;
 typedef unsigned char u8;
@@ -29,6 +31,7 @@ void propagate_fwd(const matrix* weights, const vector* inputs, vector* results,
     vector_add_inplace(results->len, biases->data, results->data);
 }
 
+// Basic version, too many aligned_alloc
 u8 infer(vector* input) {
     vector* outputs[NUM_LAYERS];
     outputs[0] = new_vec_aligned(98);
@@ -54,7 +57,7 @@ u8 infer(vector* input) {
     propagate_fwd(weights[6], outputs[5], outputs[6], biases[6]);
     softmax_inplace(outputs[6]->data, 52);
 
-    u8 pred = get_max(outputs[6]);
+    u8 pred = getv_max_i(outputs[6]->data, 52);
 
     free(outputs[0]->data);
     free(outputs[0]);
@@ -74,7 +77,9 @@ u8 infer(vector* input) {
     return pred;
 }
 
-u8 infer_reuse_layers(vector* input) {
+// Somewhat experimental, minumum number of alligned_alloc without breaking things.
+// This code fucking sucks but its fast so uhhhh
+u8 infer_reuse_layers_thread(vector* input, matrix** weights, vector** biases) {
     vector* outputs[NUM_LAYERS];
     outputs[0] = new_vec_aligned(98);
     outputs[1] = new_vec_aligned(65);
@@ -114,77 +119,24 @@ u8 infer_reuse_layers(vector* input) {
     propagate_fwd(weights[6], outputs[1], outputs[0], biases[6]);
     softmax_inplace(outputs[0]->data, 52);
 
-    u8 pred = get_max(outputs[0]);
+    u8 prediction = getv_max_i(outputs[0]->data, 52);
 
     free(outputs[0]->data);
     free(outputs[0]);
     free(outputs[1]->data);
     free(outputs[1]);
 
-    return pred;
-}
-
-u8 infer_reuse_input(vector* input) {
-    vector* outputs[NUM_LAYERS];
-    outputs[0] = new_vec_aligned(98);
-
-    propagate_fwd(weights[0], input, outputs[0], biases[0]);
-    relu_inplace(outputs[0]->data, 98);
-
-    input->len = 65;
-    memset(input->data, 0, 65 * sizeof(f32));
-
-    propagate_fwd(weights[1], outputs[0], input, biases[1]);
-    relu_inplace(input->data, 65);
-
-    outputs[0]->len = 50;
-    memset(outputs[0]->data, 0, 50 * sizeof(f32));
-
-    propagate_fwd(weights[2], input, outputs[0], biases[2]);
-    relu_inplace(outputs[0]->data, 50);
-
-    input->len = 30;
-    memset(input->data, 0, 30 * sizeof(f32));
-
-    propagate_fwd(weights[3], outputs[0], input, biases[3]);
-    relu_inplace(input->data, 30);
-
-    outputs[0]->len = 25;
-    memset(outputs[0]->data, 0, 25 * sizeof(f32));
-
-    propagate_fwd(weights[4], input, outputs[0], biases[4]);
-    relu_inplace(outputs[0]->data, 25);
-
-    input->len = 40;
-    memset(input->data, 0, 40 * sizeof(f32));
-
-    propagate_fwd(weights[5], outputs[0], input, biases[5]);
-    relu_inplace(input->data, 40);
-
-    outputs[0]->len = 52;
-    memset(outputs[0]->data, 0, 52 * sizeof(f32));
-
-    propagate_fwd(weights[6], input, outputs[0], biases[6]);
-    softmax_inplace(outputs[0]->data, 52);
-
-    u8 pred = get_max(outputs[0]);
-
-    free(outputs[0]->data);
-    free(outputs[0]);
-
-    input->len = 225;
-
-    return pred;
+    return prediction;
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 3) {
-        printf("Not enough arguments. Usage: speed_cpu <path_to_model.txt> <tensors_dir/>");
+    if (argc < 4) {
+        printf("Not enough arguments. Usage: speed_cpu <path_to_model.txt> <tensors_dir/> <number_of_inferences>\n");
         return EXIT_FAILURE;
     }
 
     // Start timing
-    struct timeval stop, start;
+    struct timeval stop, start, preinf;
     gettimeofday(&start, NULL);
 
     // Dimensions of target model are hardcoded
@@ -204,20 +156,17 @@ int main(int argc, char* argv[]) {
     biases[5] = new_vec_aligned(40);
     biases[6] = new_vec_aligned(52);
 
-    vector* input = new_vec_aligned(TENSOR_SIZE);
-
     read_model(weights, biases, argv[1]);
 
     // Transpose weights to column major
     for (int i = 0; i < NUM_LAYERS; i++)
         transpose_mat_inplace(weights[i]);
 
+    // Set up preliminary counts and data
     const char* directory_path = argv[2];
     int input_count = file_count(directory_path);
     printf("Number of input tensors: %d\n", input_count);
 
-    // +1 because file idx starts at 1
-    u8* results = (u8*)malloc(input_count * sizeof(u8));
     f32* tensors = (f32*)aligned_alloc(SIMD_ALGN, TSIZE_ALGN_BYTES * input_count);
 
     // Read and process inputs
@@ -241,11 +190,46 @@ int main(int argc, char* argv[]) {
     free(file_path);
     free(file_num_str);
 
-    // Run inference
+    // Time pre-inference
+    gettimeofday(&preinf, NULL);
+    printf("Pre inference (model read, tensor read, transpose) took %lu us\n",
+           (preinf.tv_sec - start.tv_sec) * 1000000 + preinf.tv_usec - start.tv_usec);
+
+    int iter_per_in = atoi(argv[3]);
+    // int NUM_THREADS = sysconf(_SC_NPROCESSORS_ONLN);
+
+#pragma omp parallel
+    {
+        int force = 0;
+        u8* results_local = (u8*)malloc(input_count * sizeof(u8));
+
+        for (int i = 0; i < input_count; i++) {
+            // printf("Thread %d: Processing input %d\n", omp_get_thread_num(), i);
+
+            vector* input = new_vec_aligned(TSIZE_ALGN_BYTES / sizeof(f32));
+            memcpy(input->data, (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i], TSIZE_ALGN_BYTES);
+
+#pragma omp for
+            for (int j = 0; j < iter_per_in - 1; j++) {
+                // Using global memory for model seems to be faster
+                results_local[i] = infer_reuse_layers_thread(input, weights, biases);
+                force += results_local[i];
+            }
+
+            free(input->data);
+            free(input);
+        }
+
+        free(results_local);
+        printf("Thread %d: %d\n", omp_get_thread_num(), force);
+    }
+
+    // Output for csv
+    vector* input = new_vec_aligned(TENSOR_SIZE);
+    u8* results = (u8*)malloc(input_count * sizeof(u8));
     for (int i = 0; i < input_count; i++) {
         input->data = (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i];
-        // for (int i = 0; i < 100000; i++)
-        results[i] = infer_reuse_layers(input);
+        results[i] = infer_reuse_layers_thread(input, weights, biases);
     }
 
     // Write to csv file
@@ -258,7 +242,7 @@ int main(int argc, char* argv[]) {
 
     // Time taken
     gettimeofday(&stop, NULL);
-    printf("took %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
+    printf("Full run took %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
 
     return EXIT_SUCCESS;
 }
