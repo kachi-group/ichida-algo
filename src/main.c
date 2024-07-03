@@ -208,8 +208,8 @@ int main(int argc, char* argv[]) {
         for (int i = 0; i < input_count; i++) {
             // printf("Thread %d: Processing input %d\n", omp_get_thread_num(), i);
 
-            vector* input = new_vec_aligned(TSIZE_ALGN_BYTES / sizeof(f32));
-            memcpy(input->data, (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i], TSIZE_ALGN_BYTES);
+            vector* input = new_vec_aligned(TENSOR_SIZE);
+            memcpy(input->data, (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i], TENSOR_SIZE * sizeof(f32));
 
 #pragma omp for
             for (int j = 0; j < iter_per_in - 1; j++) {

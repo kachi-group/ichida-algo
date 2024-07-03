@@ -107,7 +107,6 @@ u8 argmax(f32* in, int len) {
     return idx;
 }
 
-
 void transpose_mat_inplace(matrix* in) {
     int cols_before = in->cols;
     int rows_before = in->rows;
