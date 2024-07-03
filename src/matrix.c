@@ -38,7 +38,7 @@ vector* new_vec_aligned(int len) {
     return new_vec;
 }
 
-// Ver. Artemis Rosman
+// ver. Artemis Rosman simd_intrin 2x8
 static void kernel(const float* in, const float* wg, float* rs, int start_row, int start_col, int w_width) {
     // printf("Kernel at row %d col %d\n", start_row, start_col);
     __m256 res = _mm256_load_ps(&rs[start_col]);
@@ -76,10 +76,19 @@ void relu_inplace(f32* dest, int len) {
     }
 }
 
+// Hacky but fast and accurate for existing inputs
+static double fastexp(double x) {
+    i64 tmp = (i64)(1512775 * x + 1072632447);
+    tmp <<= 32;
+    double result;
+    memcpy(&result, &tmp, sizeof(result));
+    return result;
+}
+
 void softmax_inplace(f32* dest, int len) {
     float res = 0.0f;
     for (int i = 0; i < len; i++) {
-        res += exp(dest[i]);
+        res += fastexp(dest[i]);
     }
     for (int i = 0; i < len; i++) {
         dest[i] /= res;
@@ -111,12 +120,12 @@ void transpose_mat_inplace(matrix* in) {
 }
 
 // Get result from output layer
-u8 get_max(vector* a) {
+u8 argmax(f32* in, int len) {
     int idx = 0;
-    float res = (a->data)[0];
-    for (int i = 0; i < a->len; i++) {
-        if (res < (a->data)[i]) {
-            res = (a->data)[i];
+    float res = in[0];
+    for (int i = 0; i < len; i++) {
+        if (res < in[i]) {
+            res = in[i];
             idx = i;
         }
     }

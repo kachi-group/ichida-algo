@@ -40,3 +40,5 @@ bin/
 tensors/
 results.csv
 tensors/
+perf.data
+perf.data.old
