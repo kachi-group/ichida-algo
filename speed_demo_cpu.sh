@@ -16,7 +16,7 @@ if [ ! -f "$binary" ]; then
 fi
 
 start_time=$(date +%s)
-./$binary "$weights_and_biases" "$input_tensor_dir"
+./$binary "$weights_and_biases" "$input_tensor_dir" 1
 
 end_time=$(date +%s)
 execution_time=$((end_time - start_time))
