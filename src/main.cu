@@ -233,7 +233,6 @@ int main(int argc, char* argv[]) {
     }
 
     results = (int*)malloc((size + 1) * sizeof(int));
-    memset(results, 0, (size + 1) * sizeof(int));
     d_inputs = (matrix**)malloc((size + 1) * sizeof(matrix*));
 
     dir = opendir(directory_path);
