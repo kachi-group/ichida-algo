@@ -1,10 +1,10 @@
 name: cpp-linter
 on:
   pull_request:
-    branches: main
+    branches: cuda-staging
     paths: ['**.cu','**.cpp','**.c', '**.h', '**CMakeLists.txt']
   push:
-    branches: main
+    branches: cuda-staging
     paths: ['**.cu','**.cpp','**.c', '**.h', '**CMakeLists.txt']
 
 permissions:
