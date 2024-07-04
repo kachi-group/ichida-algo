@@ -1,4 +1,4 @@
-#include "../include/matrix.h"
+#include "matrix.cuh"
 #include <dirent.h>
 #include <iostream>
 #include <stdio.h>
@@ -21,9 +21,11 @@ matrix* weights[NUM_LAYERS];
 matrix* biases[NUM_LAYERS];
 
 // device weights and biases;
-matrix* d_weights;
-matrix* d_biases;
-matrix* d_input;
+matrix* d_weights[7];
+matrix* d_biases[7];
+matrix** d_inputs;
+
+int* results;
 
 char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 'G', 'g', 'H', 'h', 'I', 'i',
                     'J', 'j', 'K', 'k', 'L', 'l', 'M', 'm', 'N', 'n', 'O', 'o', 'P', 'p', 'Q', 'q', 'R', 'r',
@@ -101,91 +103,76 @@ void read_tensor(matrix* a, const char* fileName) {
 }
 
 void propagate_fwd(matrix* weights, matrix* input_layer, matrix* output_layer, matrix* biases) {
-    matrix_mul<<<1, 1>>>(weights, input_layer, output_layer);
+    matrix_mul<<<1, 1>>>(weights->data, input_layer->data, output_layer->data, weights->rows, weights->cols);
     cudaDeviceSynchronize();
-    matrix_add<<<1, 1>>>(output_layer, biases);
+    matrix_add<<<1, 1>>>(output_layer->data, biases->data, biases->rows);
     cudaDeviceSynchronize();
 }
 
-__global__ void get_max(matrix* a, int* d_int) {
-    int idx = 0;
-    float res = a->data[0];
-    for (int i = 0; i < a->rows; i++) {
-        if (res < a->data[i]) {
-            res = a->data[i];
-            idx = i;
-        }
+__global__ void pp(float* a, int rows) {
+    for (int i = 0; i < rows; i++) {
+        printf("%f\n", a[i]);
     }
-    *d_int = idx;
 }
 
 int infer(matrix* d_input) {
-    matrix* mdl_layers[NUM_LAYERS];
-    matrix* d_mdl_layers;
+    matrix* outputs[2];
+    outputs[0] = new_matrix_d(98, 1);
+    outputs[1] = new_matrix_d(65, 1);
 
-    mdl_layers[0] = new_matrix(98, 1);
-    mdl_layers[1] = new_matrix(65, 1);
-    mdl_layers[2] = new_matrix(50, 1);
-    mdl_layers[3] = new_matrix(30, 1);
-    mdl_layers[4] = new_matrix(25, 1);
-    mdl_layers[5] = new_matrix(40, 1);
-    mdl_layers[6] = new_matrix(52, 1);
-
-    CUDA_CHECK(cudaMalloc(&d_mdl_layers, NUM_LAYERS * sizeof(matrix)));
-
-    initmalloc(&d_mdl_layers[0], mdl_layers[0], 98, 1);
-    initmalloc(&d_mdl_layers[1], mdl_layers[1], 65, 1);
-    initmalloc(&d_mdl_layers[2], mdl_layers[2], 50, 1);
-    initmalloc(&d_mdl_layers[3], mdl_layers[3], 30, 1);
-    initmalloc(&d_mdl_layers[4], mdl_layers[4], 25, 1);
-    initmalloc(&d_mdl_layers[5], mdl_layers[5], 40, 1);
-    initmalloc(&d_mdl_layers[6], mdl_layers[6], 52, 1);
-
-    propagate_fwd(&d_weights[0], d_input, &d_mdl_layers[0], &d_biases[0]);
-    relu<<<1, 1>>>(&d_mdl_layers[0]);
+    propagate_fwd(d_weights[0], d_input, outputs[0], d_biases[0]);
+    relu<<<1, 1>>>(outputs[0]->data, 98);
     cudaDeviceSynchronize();
 
-    propagate_fwd(&d_weights[1], &d_mdl_layers[0], &d_mdl_layers[1], &d_biases[1]);
-    relu<<<1, 1>>>(&d_mdl_layers[1]);
+    propagate_fwd(d_weights[1], outputs[0], outputs[1], d_biases[1]);
+    cudaMemsetAsync(outputs[0], 0, 50 * sizeof(float));
+    relu<<<1, 1>>>(outputs[1]->data, 65);
     cudaDeviceSynchronize();
 
-    propagate_fwd(&d_weights[2], &d_mdl_layers[1], &d_mdl_layers[2], &d_biases[2]);
-    relu<<<1, 1>>>(&d_mdl_layers[2]);
+    propagate_fwd(d_weights[2], outputs[1], outputs[0], d_biases[2]);
+    cudaMemsetAsync(outputs[1], 0, 30 * sizeof(float));
+    relu<<<1, 1>>>(outputs[0]->data, 50);
     cudaDeviceSynchronize();
 
-    propagate_fwd(&d_weights[3], &d_mdl_layers[2], &d_mdl_layers[3], &d_biases[3]);
-    relu<<<1, 1>>>(&d_mdl_layers[3]);
+    propagate_fwd(d_weights[3], outputs[0], outputs[1], d_biases[3]);
+    cudaMemsetAsync(outputs[0], 0, 25 * sizeof(float));
+    relu<<<1, 1>>>(outputs[1]->data, 30);
     cudaDeviceSynchronize();
 
-    propagate_fwd(&d_weights[4], &d_mdl_layers[3], &d_mdl_layers[4], &d_biases[4]);
-    relu<<<1, 1>>>(&d_mdl_layers[4]);
+    propagate_fwd(d_weights[4], outputs[1], outputs[0], d_biases[4]);
+    cudaMemsetAsync(outputs[1], 0, 40 * sizeof(float));
+    relu<<<1, 1>>>(outputs[0]->data, 25);
     cudaDeviceSynchronize();
 
-    propagate_fwd(&d_weights[5], &d_mdl_layers[4], &d_mdl_layers[5], &d_biases[5]);
-    relu<<<1, 1>>>(&d_mdl_layers[5]);
+    propagate_fwd(d_weights[5], outputs[0], outputs[1], d_biases[5]);
+    cudaMemsetAsync(outputs[0], 0, 52 * sizeof(float));
+    relu<<<1, 1>>>(outputs[1]->data, 40);
     cudaDeviceSynchronize();
 
-    propagate_fwd(&d_weights[6], &d_mdl_layers[5], &d_mdl_layers[6], &d_biases[6]);
-    softmax<<<1, 1>>>(&d_mdl_layers[6]);
+    propagate_fwd(d_weights[6], outputs[1], outputs[0], d_biases[6]);
+    softmax<<<1, 1>>>(outputs[0]->data, 52);
     cudaDeviceSynchronize();
 
-    int* d_int;
-    int h_int = 0;
+    int* res_d;
+    cudaMalloc(&res_d, sizeof(int));
 
-    CUDA_CHECK(cudaMalloc((void**)&d_int, sizeof(int)));
-    get_max<<<1, 1>>>(&d_mdl_layers[6], d_int);
+    argmax<<<1, 1>>>(outputs[0]->data, 52, res_d);
     cudaDeviceSynchronize();
-    CUDA_CHECK(cudaMemcpy(&h_int, d_int, sizeof(int), cudaMemcpyDeviceToHost));
 
-    dealloc(&d_mdl_layers[0]);
-    dealloc(&d_mdl_layers[1]);
-    dealloc(&d_mdl_layers[2]);
-    dealloc(&d_mdl_layers[3]);
-    dealloc(&d_mdl_layers[4]);
-    dealloc(&d_mdl_layers[5]);
-    dealloc(&d_mdl_layers[6]);
+    cudaFree(outputs[0]->data);
+    free(outputs[0]);
+    cudaFree(outputs[1]->data);
+    free(outputs[1]);
 
-    return h_int;
+    int res_h;
+    cudaMemcpy(&res_h, res_d, sizeof(int), cudaMemcpyDeviceToHost);
+    return res_h;
+}
+
+void process(int input_size) {
+    for (int i = 1; i <= input_size; i++) {
+        results[i] = infer(d_inputs[i]);
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -218,26 +205,24 @@ int main(int argc, char* argv[]) {
 
     read_model(argv[1]);
 
-    // initialize d_weights struct matrix arr;
-    CUDA_CHECK(cudaMalloc(&d_weights, NUM_LAYERS * sizeof(matrix)));
-    CUDA_CHECK(cudaMalloc(&d_biases, NUM_LAYERS * sizeof(matrix)));
+    d_weights[0] = get_copy(weights[0]);
+    d_weights[1] = get_copy(weights[1]);
+    d_weights[2] = get_copy(weights[2]);
+    d_weights[3] = get_copy(weights[3]);
+    d_weights[4] = get_copy(weights[4]);
+    d_weights[5] = get_copy(weights[5]);
+    d_weights[6] = get_copy(weights[6]);
 
-    initmalloc(&d_weights[0], weights[0], 98, 225);
-    initmalloc(&d_weights[1], weights[1], 65, 98);
-    initmalloc(&d_weights[2], weights[2], 50, 65);
-    initmalloc(&d_weights[3], weights[3], 30, 50);
-    initmalloc(&d_weights[4], weights[4], 25, 30);
-    initmalloc(&d_weights[5], weights[5], 40, 25);
-    initmalloc(&d_weights[6], weights[6], 52, 40);
-    initmalloc(&d_biases[0], biases[0], 98, 1);
-    initmalloc(&d_biases[1], biases[1], 65, 1);
-    initmalloc(&d_biases[2], biases[2], 50, 1);
-    initmalloc(&d_biases[3], biases[3], 30, 1);
-    initmalloc(&d_biases[4], biases[4], 25, 1);
-    initmalloc(&d_biases[5], biases[5], 40, 1);
-    initmalloc(&d_biases[6], biases[6], 52, 1);
+    d_biases[0] = get_copy(biases[0]);
+    d_biases[1] = get_copy(biases[1]);
+    d_biases[2] = get_copy(biases[2]);
+    d_biases[3] = get_copy(biases[3]);
+    d_biases[4] = get_copy(biases[4]);
+    d_biases[5] = get_copy(biases[5]);
+    d_biases[6] = get_copy(biases[6]);
 
-    // Run program
+    // ------------------------------------------------------------
+
     const char* directory_path = argv[2];
     struct dirent* entry;
     DIR* dir = opendir(directory_path);
@@ -253,7 +238,11 @@ int main(int argc, char* argv[]) {
             size++;
         }
     }
-    int* results = (int*)malloc((size + 1) * sizeof(int));
+
+    results = (int*)malloc((size + 1) * sizeof(int));
+    memset(results, 0, (size + 1) * sizeof(int));
+    d_inputs = (matrix**)malloc((size + 1) * sizeof(matrix*));
+
     dir = opendir(directory_path);
     matrix* d_input;
 
@@ -267,11 +256,7 @@ int main(int argc, char* argv[]) {
             strcat(file_name, "/");
             strcat(file_name, entry->d_name);
             read_tensor(input, file_name);
-            CUDA_CHECK(cudaMalloc(&d_input, 255 * sizeof(matrix)));
-            initmalloc(d_input, input, 1, 225);
-            results[file_num] = infer(d_input);
-            dealloc(d_input);
-
+            d_inputs[file_num] = get_copy(input);
             free(input);
         }
     }
@@ -279,6 +264,9 @@ int main(int argc, char* argv[]) {
     free(file_name);
     free(file_num_str);
     closedir(dir);
+
+    // Process
+    process(size);
 
     // Write to csv file
     FILE* csv_file = fopen("results.csv", "w+");
