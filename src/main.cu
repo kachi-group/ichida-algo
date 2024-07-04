@@ -202,7 +202,6 @@ int main(int argc, char* argv[]) {
     biases[4] = new_matrix(25, 1);
     biases[5] = new_matrix(40, 1);
     biases[6] = new_matrix(52, 1);
-
     read_model(argv[1]);
 
     d_weights[0] = get_copy(weights[0]);
