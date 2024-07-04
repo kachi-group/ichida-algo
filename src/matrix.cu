@@ -29,39 +29,6 @@ matrix* get_copy(matrix* h_mat) {
     return res;
 }
 
-__global__ void ptref(matrix* d_mat, float* d_res, int* d_cols, int* d_rows) {
-    d_mat->data = d_res;
-    d_mat->cols = *d_cols;
-    d_mat->rows = *d_rows;
-}
-
-// Allocate device memory for matrix dimensions and data
-void initmalloc(matrix* d_mat, matrix* h_mat, int rows, int cols) {
-    int* d_cols;
-    int* d_rows;
-    float* d_res;
-    cudaMalloc(&d_cols, sizeof(int));
-    cudaMalloc(&d_rows, sizeof(int));
-    cudaMalloc(&d_res, rows * cols * sizeof(float));
-
-    cudaMemcpy(d_rows, &rows, sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_cols, &cols, sizeof(int), cudaMemcpyHostToDevice);
-
-    cudaMemcpy(d_res, h_mat->data, (rows * cols * sizeof(float)), cudaMemcpyHostToDevice);
-
-    // Call kernel to initialize the matrix structure on the device
-    ptref<<<1, 1>>>(d_mat, d_res, d_cols, d_rows);
-    cudaDeviceSynchronize();
-}
-
-void dealloc(matrix* d_mat) {
-    cudaFree(&d_mat->data);
-    cudaFree(&d_mat->cols);
-    cudaFree(&d_mat->rows);
-
-    cudaFree(d_mat);
-}
-
 __global__ void matrix_mul(float* weight, float* input, float* result, int w_rows, int w_cols) {
     for (int i = 0; i < w_rows; i++) {
         float sum = 0;
