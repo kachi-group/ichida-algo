@@ -2,10 +2,10 @@ name: CI
 
 on:
     push:
-        branches: main
+        branches: cuda-staging
         paths: ['**.cu','**.c','**.cpp', '**.h', '**CMakeLists.txt'] 
     pull_request:
-        branches: main
+        branches: cuda-staging
         paths: ['**.cu','**.c','**.cpp', '**.h', '**CMakeLists.txt']
 
 jobs:
