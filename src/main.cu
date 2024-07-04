@@ -109,12 +109,6 @@ void propagate_fwd(matrix* weights, matrix* input_layer, matrix* output_layer, m
     cudaDeviceSynchronize();
 }
 
-__global__ void pp(float* a, int rows) {
-    for (int i = 0; i < rows; i++) {
-        printf("%f\n", a[i]);
-    }
-}
-
 int infer(matrix* d_input) {
     matrix* outputs[2];
     outputs[0] = new_matrix_d(98, 1);
