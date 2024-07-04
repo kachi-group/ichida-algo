@@ -80,7 +80,7 @@ u8 infer(vector* input) {
 // Somewhat experimental, minumum number of alligned_alloc without breaking things.
 // This code fucking sucks but its fast so uhhhh
 u8 infer_reuse_layers_thread(vector* input, matrix** weights, vector** biases) {
-    vector* outputs[NUM_LAYERS];
+    vector* outputs[2];
     outputs[0] = new_vec_aligned(98);
     outputs[1] = new_vec_aligned(65);
 
@@ -208,8 +208,8 @@ int main(int argc, char* argv[]) {
         for (int i = 0; i < input_count; i++) {
             // printf("Thread %d: Processing input %d\n", omp_get_thread_num(), i);
 
-            vector* input = new_vec_aligned(TSIZE_ALGN_BYTES / sizeof(f32));
-            memcpy(input->data, (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i], TSIZE_ALGN_BYTES);
+            vector* input = new_vec_aligned(TENSOR_SIZE);
+            memcpy(input->data, (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i], TENSOR_SIZE * sizeof(f32));
 
 #pragma omp for
             for (int j = 0; j < iter_per_in - 1; j++) {
@@ -223,7 +223,7 @@ int main(int argc, char* argv[]) {
         }
 
         free(results_local);
-        printf("Thread %d: %d\n", omp_get_thread_num(), force);
+        printf("Thread %2d: %d\n", omp_get_thread_num(), force);
     }
 
     // Output for csv

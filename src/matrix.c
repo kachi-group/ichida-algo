@@ -64,7 +64,7 @@ void sgemv_t_tuned(const float* weights, const float* inputs, float* __restrict_
 }
 
 // TODO: SIMD tuned versions if these are a noticeable impact
-void vector_add_inplace(int len, const f32* src, f32* dest) {
+void vector_add_inplace(int len, const f32* src, f32* __restrict__ dest) {
     for (int i = 0; i < len; i++) {
         dest[i] += src[i];
     }
@@ -77,10 +77,9 @@ void relu_inplace(f32* dest, int len) {
 }
 
 // Hacky but fast and accurate for existing inputs
-static double fastexp(double x) {
-    i64 tmp = (i64)(1512775 * x + 1072632447);
-    tmp <<= 32;
-    double result;
+static inline float fastexp(float x) {
+    int tmp = (int)(1512775 * x + 1072632447);
+    float result;
     memcpy(&result, &tmp, sizeof(result));
     return result;
 }
@@ -93,6 +92,19 @@ void softmax_inplace(f32* dest, int len) {
     for (int i = 0; i < len; i++) {
         dest[i] /= res;
     }
+}
+
+// Get result from output layer
+u8 argmax(f32* in, int len) {
+    int idx = 0;
+    float res = in[0];
+    for (int i = 0; i < len; i++) {
+        if (res < in[i]) {
+            res = in[i];
+            idx = i;
+        }
+    }
+    return idx;
 }
 
 void transpose_mat_inplace(matrix* in) {
@@ -117,17 +129,4 @@ void transpose_mat_inplace(matrix* in) {
     // Swap dims
     in->cols = pad_w_width;
     in->rows = cols_before;
-}
-
-// Get result from output layer
-u8 argmax(f32* in, int len) {
-    int idx = 0;
-    float res = in[0];
-    for (int i = 0; i < len; i++) {
-        if (res < in[i]) {
-            res = in[i];
-            idx = i;
-        }
-    }
-    return idx;
 }
