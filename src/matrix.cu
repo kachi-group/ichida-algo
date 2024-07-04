@@ -23,7 +23,7 @@ matrix* new_matrix_d(int rows, int cols) {
     return res;
 }
 
-matrix* get_copy(matrix* h_mat) {
+matrix* copy_to_device(matrix* h_mat) {
     matrix* res = new_matrix_d(h_mat->rows, h_mat->cols);
     CUDA_CHECK(cudaMemcpy(res->data, h_mat->data, h_mat->rows * h_mat->cols * sizeof(float), cudaMemcpyHostToDevice));
     return res;

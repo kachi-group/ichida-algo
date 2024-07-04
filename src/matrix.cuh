@@ -8,7 +8,7 @@ typedef struct {
 
 matrix* new_matrix(int rows, int cols);
 
-matrix* get_copy(matrix* h_mat);
+matrix* copy_to_device(matrix* h_mat);
 
 matrix* new_matrix_d(int rows, int cols);
 

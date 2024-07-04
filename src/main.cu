@@ -147,10 +147,10 @@ int infer(matrix* d_input) {
     softmax<<<1, 1>>>(outputs[0]->data, 52);
     cudaDeviceSynchronize();
 
-    int* res_d;
-    cudaMalloc(&res_d, sizeof(int));
+    int* d_res;
+    cudaMalloc(&d_res, sizeof(int));
 
-    argmax<<<1, 1>>>(outputs[0]->data, 52, res_d);
+    argmax<<<1, 1>>>(outputs[0]->data, 52, d_res);
     cudaDeviceSynchronize();
 
     cudaFree(outputs[0]->data);
@@ -158,9 +158,9 @@ int infer(matrix* d_input) {
     cudaFree(outputs[1]->data);
     free(outputs[1]);
 
-    int res_h;
-    cudaMemcpy(&res_h, res_d, sizeof(int), cudaMemcpyDeviceToHost);
-    return res_h;
+    int h_res;
+    cudaMemcpy(&h_res, d_res, sizeof(int), cudaMemcpyDeviceToHost);
+    return h_res;
 }
 
 void process(int input_size) {
@@ -198,23 +198,21 @@ int main(int argc, char* argv[]) {
     biases[6] = new_matrix(52, 1);
     read_model(argv[1]);
 
-    d_weights[0] = get_copy(weights[0]);
-    d_weights[1] = get_copy(weights[1]);
-    d_weights[2] = get_copy(weights[2]);
-    d_weights[3] = get_copy(weights[3]);
-    d_weights[4] = get_copy(weights[4]);
-    d_weights[5] = get_copy(weights[5]);
-    d_weights[6] = get_copy(weights[6]);
+    d_weights[0] = copy_to_device(weights[0]);
+    d_weights[1] = copy_to_device(weights[1]);
+    d_weights[2] = copy_to_device(weights[2]);
+    d_weights[3] = copy_to_device(weights[3]);
+    d_weights[4] = copy_to_device(weights[4]);
+    d_weights[5] = copy_to_device(weights[5]);
+    d_weights[6] = copy_to_device(weights[6]);
 
-    d_biases[0] = get_copy(biases[0]);
-    d_biases[1] = get_copy(biases[1]);
-    d_biases[2] = get_copy(biases[2]);
-    d_biases[3] = get_copy(biases[3]);
-    d_biases[4] = get_copy(biases[4]);
-    d_biases[5] = get_copy(biases[5]);
-    d_biases[6] = get_copy(biases[6]);
-
-    // ------------------------------------------------------------
+    d_biases[0] = copy_to_device(biases[0]);
+    d_biases[1] = copy_to_device(biases[1]);
+    d_biases[2] = copy_to_device(biases[2]);
+    d_biases[3] = copy_to_device(biases[3]);
+    d_biases[4] = copy_to_device(biases[4]);
+    d_biases[5] = copy_to_device(biases[5]);
+    d_biases[6] = copy_to_device(biases[6]);
 
     const char* directory_path = argv[2];
     struct dirent* entry;
@@ -236,7 +234,6 @@ int main(int argc, char* argv[]) {
     d_inputs = (matrix**)malloc((size + 1) * sizeof(matrix*));
 
     dir = opendir(directory_path);
-    matrix* d_input;
 
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
@@ -248,7 +245,7 @@ int main(int argc, char* argv[]) {
             strcat(file_name, "/");
             strcat(file_name, entry->d_name);
             read_tensor(input, file_name);
-            d_inputs[file_num] = get_copy(input);
+            d_inputs[file_num] = copy_to_device(input);
             free(input);
         }
     }
