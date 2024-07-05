@@ -109,14 +109,12 @@ __device__ void propagate_fwd(matrix* weights, matrix* input_layer, matrix* outp
     matrix_add(output_layer->data, biases->data, biases->rows);
 }
 
-// __global__ void infer(int a) {
 __global__ void infer(matrix** d_inputs, int* d_results, matrix** d_weights, matrix** d_biases, int it_per_input, int in_num) {
     int num_threads = blockDim.x * gridDim.x;
     int thread_idx = (blockIdx.x * blockDim.x + threadIdx.x);
 
     if (thread_idx > it_per_input) return;
 
-    // printf("Thread %d at input %d\n", thread_idx, in_num);
 
     matrix* input = d_inputs[in_num];
 
@@ -177,7 +175,6 @@ int main(int argc, char* argv[]) {
     weights[4] = new_matrix(25, 30);
     weights[5] = new_matrix(40, 25);
     weights[6] = new_matrix(52, 40);
-
 
     biases[0] = new_matrix(98, 1);
     biases[1] = new_matrix(65, 1);
