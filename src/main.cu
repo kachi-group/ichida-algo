@@ -113,8 +113,7 @@ __global__ void infer(matrix** d_inputs, int* d_results, matrix** d_weights, mat
     int num_threads = blockDim.x * gridDim.x;
     int thread_idx = (blockIdx.x * blockDim.x + threadIdx.x);
 
-    if (thread_idx > it_per_input)
-        return;
+    if (thread_idx > it_per_input) return;
 
     matrix* input = d_inputs[in_num];
 
@@ -156,9 +155,8 @@ __global__ void infer(matrix** d_inputs, int* d_results, matrix** d_weights, mat
 #define IT_PER_IN 1000000
 
 int main(int argc, char* argv[]) {
-
-    if (argc < 3) {
-        printf("Not enough arguments.");
+    if (argc < 4) {
+        printf("Not enough arguments. Usage: speed_cpu <path_to_model.txt> <tensors_dir/> <number_of_inferences>\n");
         return EXIT_FAILURE;
     }
 
@@ -236,8 +234,9 @@ int main(int argc, char* argv[]) {
 
     cudaMemset(d_results, 0, sizeof(int) * input_count);
 
+    int iter_per_in = atoi(argv[3]);
     for (int i = 0; i < input_count; i++) {
-        infer<<<108, 69>>>(d_inputs, d_results, d_weights, d_biases, IT_PER_IN, i);
+        infer<<<108, 69>>>(d_inputs, d_results, d_weights, d_biases, iter_per_in, i);
     }
     
     cudaDeviceSynchronize();
