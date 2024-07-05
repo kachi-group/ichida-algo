@@ -234,41 +234,7 @@ int main(int argc, char* argv[]) {
     free(file_num_str);
     closedir(dir);
 
-    int deviceCount;
-    cudaError_t err = cudaGetDeviceCount(&deviceCount);
-    if (err != cudaSuccess) {
-        printf("Error: %s\n", cudaGetErrorString(err));
-        return -1;
-    }
-
-    for (int i = 0; i < deviceCount; ++i) {
-        cudaDeviceProp prop;
-        cudaGetDeviceProperties(&prop, i);
-        printf("Device %d:\n", i);
-        printf("  Device Name: %s\n", prop.name);
-        printf("  Compute Capability: %d.%d\n", prop.major, prop.minor);
-        printf("  Total Global Memory: %lu bytes\n", prop.totalGlobalMem);
-        printf("  Shared Memory per Block: %lu bytes\n", prop.sharedMemPerBlock);
-        printf("  Registers per Block: %d\n", prop.regsPerBlock);
-        printf("  Warp Size: %d\n", prop.warpSize);
-        printf("  Max Threads per Block: %d\n", prop.maxThreadsPerBlock);
-        printf("  Max Threads Dim: (%d, %d, %d)\n", prop.maxThreadsDim[0], prop.maxThreadsDim[1],
-               prop.maxThreadsDim[2]);
-        printf("  Max Grid Size: (%d, %d, %d)\n", prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
-        printf("  Clock Rate: %d kHz\n", prop.clockRate);
-        printf("  Total Constant Memory: %lu bytes\n", prop.totalConstMem);
-        printf("  Multiprocessor Count: %d\n", prop.multiProcessorCount);
-        printf("  Memory Clock Rate: %d kHz\n", prop.memoryClockRate);
-        printf("  Memory Bus Width: %d bits\n", prop.memoryBusWidth);
-        printf("  L2 Cache Size: %d bytes\n", prop.l2CacheSize);
-        printf("\n");
-    }
-
     cudaMemset(d_results, 0, sizeof(int) * input_count);
-
-    int minGridSize, blockSize;
-    cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, infer, 0, 0);
-    printf("Recommended block size: %d Grid size: %d\n", blockSize, minGridSize);
 
     for (int i = 0; i < input_count; i++) {
         infer<<<108, 69>>>(d_inputs, d_results, d_weights, d_biases, IT_PER_IN, i);
