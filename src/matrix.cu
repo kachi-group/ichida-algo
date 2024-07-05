@@ -40,6 +40,15 @@ matrix* copy_to_device(matrix* h_mat) {
     return res;
 }
 
+__device__ __host__ matrix* create_copy(matrix* mat){
+    matrix* res = (matrix*)malloc(sizeof(matrix));
+    res->rows = mat->rows;
+    res->cols = mat->cols;
+    res->data = (float*)malloc((res->rows * res->cols) * sizeof(float));
+    memcpy(res->data,mat->data,res->rows*res->cols*sizeof(float));
+    return res;
+}
+
 __device__ void matrix_mul(float* weight, float* input, float* result, int w_rows, int w_cols) {
     for (int i = 0; i < w_rows; i++) {
         float sum = 0;

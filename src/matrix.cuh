@@ -21,3 +21,5 @@ __device__ void relu(float* a, int rows);
 __device__ void softmax(float* a, int rows);
 
 __device__ int argmax(float* a, int rows);
+
+__device__ __host__ matrix* create_copy(matrix* mat);
