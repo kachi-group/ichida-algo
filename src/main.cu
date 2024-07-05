@@ -21,11 +21,13 @@ matrix* weights[NUM_LAYERS];
 matrix* biases[NUM_LAYERS];
 
 // device weights and biases;
-matrix* d_weights[7];
-matrix* d_biases[7];
+matrix** d_weights;
+matrix** d_biases;
+
 matrix** d_inputs;
 
 int* results;
+int* d_results;
 
 char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 'G', 'g', 'H', 'h', 'I', 'i',
                     'J', 'j', 'K', 'k', 'L', 'l', 'M', 'm', 'N', 'n', 'O', 'o', 'P', 'p', 'Q', 'q', 'R', 'r',
@@ -102,74 +104,61 @@ void read_tensor(matrix* a, const char* fileName) {
     fclose(file);
 }
 
-void propagate_fwd(matrix* weights, matrix* input_layer, matrix* output_layer, matrix* biases) {
-    matrix_mul<<<1, 1>>>(weights->data, input_layer->data, output_layer->data, weights->rows, weights->cols);
-    cudaDeviceSynchronize();
-    matrix_add<<<1, 1>>>(output_layer->data, biases->data, biases->rows);
-    cudaDeviceSynchronize();
+__device__ void propagate_fwd(matrix* weights, matrix* input_layer, matrix* output_layer, matrix* biases) {
+    matrix_mul(weights->data, input_layer->data, output_layer->data, weights->rows, weights->cols);
+    matrix_add(output_layer->data, biases->data, biases->rows);
 }
 
-int infer(matrix* d_input) {
+__global__ void infer(matrix** d_inputs, int* d_results, matrix** d_weights, matrix** d_biases, int it_per_input, int in_num) {
+    int num_threads = blockDim.x * gridDim.x;
+    int thread_idx = (blockIdx.x * blockDim.x + threadIdx.x);
+
+    if (thread_idx > it_per_input) return;
+
+
+    matrix* input = d_inputs[in_num];
+
     matrix* outputs[2];
-    outputs[0] = new_matrix_d(98, 1);
-    outputs[1] = new_matrix_d(65, 1);
+    outputs[0] = new_matrix(98, 1);
+    outputs[1] = new_matrix(65, 1);
 
-    propagate_fwd(d_weights[0], d_input, outputs[0], d_biases[0]);
-    relu<<<1, 1>>>(outputs[0]->data, 98);
-    cudaDeviceSynchronize();
+    for (int i = thread_idx; i < it_per_input; i += num_threads) {
+        propagate_fwd(d_weights[0], input, outputs[0], d_biases[0]);
+        relu(outputs[0]->data, 98);
 
-    propagate_fwd(d_weights[1], outputs[0], outputs[1], d_biases[1]);
-    cudaMemsetAsync(outputs[0], 0, 50 * sizeof(float));
-    relu<<<1, 1>>>(outputs[1]->data, 65);
-    cudaDeviceSynchronize();
+        propagate_fwd(d_weights[1], outputs[0], outputs[1], d_biases[1]);
+        relu(outputs[1]->data, 65);
+        
+        propagate_fwd(d_weights[2], outputs[1], outputs[0], d_biases[2]);
+        relu(outputs[0]->data, 50);
 
-    propagate_fwd(d_weights[2], outputs[1], outputs[0], d_biases[2]);
-    cudaMemsetAsync(outputs[1], 0, 30 * sizeof(float));
-    relu<<<1, 1>>>(outputs[0]->data, 50);
-    cudaDeviceSynchronize();
+        propagate_fwd(d_weights[3], outputs[0], outputs[1], d_biases[3]);
+        relu(outputs[1]->data, 30);
 
-    propagate_fwd(d_weights[3], outputs[0], outputs[1], d_biases[3]);
-    cudaMemsetAsync(outputs[0], 0, 25 * sizeof(float));
-    relu<<<1, 1>>>(outputs[1]->data, 30);
-    cudaDeviceSynchronize();
+        propagate_fwd(d_weights[4], outputs[1], outputs[0], d_biases[4]);
+        relu(outputs[0]->data, 25);
 
-    propagate_fwd(d_weights[4], outputs[1], outputs[0], d_biases[4]);
-    cudaMemsetAsync(outputs[1], 0, 40 * sizeof(float));
-    relu<<<1, 1>>>(outputs[0]->data, 25);
-    cudaDeviceSynchronize();
+        propagate_fwd(d_weights[5], outputs[0], outputs[1], d_biases[5]);
+        relu(outputs[1]->data, 40);
 
-    propagate_fwd(d_weights[5], outputs[0], outputs[1], d_biases[5]);
-    cudaMemsetAsync(outputs[0], 0, 52 * sizeof(float));
-    relu<<<1, 1>>>(outputs[1]->data, 40);
-    cudaDeviceSynchronize();
-
-    propagate_fwd(d_weights[6], outputs[1], outputs[0], d_biases[6]);
-    softmax<<<1, 1>>>(outputs[0]->data, 52);
-    cudaDeviceSynchronize();
-
-    int* d_res;
-    cudaMalloc(&d_res, sizeof(int));
-
-    argmax<<<1, 1>>>(outputs[0]->data, 52, d_res);
-    cudaDeviceSynchronize();
-
-    cudaFree(outputs[0]->data);
-    free(outputs[0]);
-    cudaFree(outputs[1]->data);
-    free(outputs[1]);
-
-    int h_res;
-    cudaMemcpy(&h_res, d_res, sizeof(int), cudaMemcpyDeviceToHost);
-    return h_res;
-}
-
-void process(int input_size) {
-    for (int i = 1; i <= input_size; i++) {
-        results[i] = infer(d_inputs[i]);
+        propagate_fwd(d_weights[6], outputs[1], outputs[0], d_biases[6]);
+        softmax(outputs[0]->data, 52);
+        
+        int res=argmax(outputs[0]->data, 52);
+        d_results[in_num] = res;
     }
+    free(outputs[0]->data);
+    free(outputs[0]);
+    free(outputs[1]->data);
+    free(outputs[1]);
 }
+
+
+#define IT_PER_IN 1000000
 
 int main(int argc, char* argv[]) {
+    
+
     if (argc < 3) {
         printf("Not enough arguments.");
         return EXIT_FAILURE;
@@ -178,9 +167,7 @@ int main(int argc, char* argv[]) {
     // Start timing
     struct timeval stop, start;
     gettimeofday(&start, NULL);
-
-    // TODO: find a way to load static weights and biases
-    // Load model (The memory of those code should be initialize during compile time to enchance the speed)
+    
     weights[0] = new_matrix(98, 225);
     weights[1] = new_matrix(65, 98);
     weights[2] = new_matrix(50, 65);
@@ -198,21 +185,15 @@ int main(int argc, char* argv[]) {
     biases[6] = new_matrix(52, 1);
     read_model(argv[1]);
 
-    d_weights[0] = copy_to_device(weights[0]);
-    d_weights[1] = copy_to_device(weights[1]);
-    d_weights[2] = copy_to_device(weights[2]);
-    d_weights[3] = copy_to_device(weights[3]);
-    d_weights[4] = copy_to_device(weights[4]);
-    d_weights[5] = copy_to_device(weights[5]);
-    d_weights[6] = copy_to_device(weights[6]);
-
-    d_biases[0] = copy_to_device(biases[0]);
-    d_biases[1] = copy_to_device(biases[1]);
-    d_biases[2] = copy_to_device(biases[2]);
-    d_biases[3] = copy_to_device(biases[3]);
-    d_biases[4] = copy_to_device(biases[4]);
-    d_biases[5] = copy_to_device(biases[5]);
-    d_biases[6] = copy_to_device(biases[6]);
+    CUDA_CHECK(cudaMalloc(&d_weights,NUM_LAYERS*sizeof(matrix*)));
+    CUDA_CHECK(cudaMalloc(&d_biases,NUM_LAYERS*sizeof(matrix*)));
+    for (int i=0;i<NUM_LAYERS;i++){
+        matrix* a=copy_to_device(weights[i]);
+        matrix* b= copy_to_device(biases[i]);
+        matrix** z=&(d_weights[i]);
+        CUDA_CHECK(cudaMemcpy(z,&a,sizeof(matrix*),cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(&(d_biases[i]),&b,sizeof(matrix*),cudaMemcpyHostToDevice));
+    }
 
     const char* directory_path = argv[2];
     struct dirent* entry;
@@ -223,18 +204,19 @@ int main(int argc, char* argv[]) {
     char* file_num_str = (char*)malloc((100) * sizeof(char));
 
     int file_num;
-    int size = 0;
+    int input_count = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
-            size++;
-        }
+            input_count++;
+       }
     }
 
-    results = (int*)malloc((size + 1) * sizeof(int));
-    d_inputs = (matrix**)malloc((size + 1) * sizeof(matrix*));
+    results = (int*)malloc((input_count) * sizeof(int));
+    memset(results,0,sizeof(int)*(input_count));
+    cudaMalloc(&d_results,(input_count)*sizeof(int));
+    cudaMalloc(&d_inputs,(input_count)*sizeof(matrix*));
 
     dir = opendir(directory_path);
-
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
             matrix* input = new_matrix(225, 1);
@@ -245,23 +227,64 @@ int main(int argc, char* argv[]) {
             strcat(file_name, "/");
             strcat(file_name, entry->d_name);
             read_tensor(input, file_name);
-            d_inputs[file_num] = copy_to_device(input);
+            matrix *temp=copy_to_device(input);
+            cudaMemcpy(&d_inputs[file_num-1],&temp,sizeof(matrix*),cudaMemcpyHostToDevice);
             free(input);
         }
     }
-
     free(file_name);
     free(file_num_str);
     closedir(dir);
 
-    // Process
-    process(size);
+    int deviceCount;
+    cudaError_t err = cudaGetDeviceCount(&deviceCount);
+    if (err != cudaSuccess) {
+        printf("Error: %s\n", cudaGetErrorString(err));
+        return -1;
+    }
 
-    // Write to csv file
+    for (int i = 0; i < deviceCount; ++i) {
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, i);
+        printf("Device %d:\n", i);
+        printf("  Device Name: %s\n", prop.name);
+        printf("  Compute Capability: %d.%d\n", prop.major, prop.minor);
+        printf("  Total Global Memory: %lu bytes\n", prop.totalGlobalMem);
+        printf("  Shared Memory per Block: %lu bytes\n", prop.sharedMemPerBlock);
+        printf("  Registers per Block: %d\n", prop.regsPerBlock);
+        printf("  Warp Size: %d\n", prop.warpSize);
+        printf("  Max Threads per Block: %d\n", prop.maxThreadsPerBlock);
+        printf("  Max Threads Dim: (%d, %d, %d)\n", prop.maxThreadsDim[0], prop.maxThreadsDim[1], prop.maxThreadsDim[2]);
+        printf("  Max Grid Size: (%d, %d, %d)\n", prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
+        printf("  Clock Rate: %d kHz\n", prop.clockRate);
+        printf("  Total Constant Memory: %lu bytes\n", prop.totalConstMem);
+        printf("  Multiprocessor Count: %d\n", prop.multiProcessorCount);
+        printf("  Memory Clock Rate: %d kHz\n", prop.memoryClockRate);
+        printf("  Memory Bus Width: %d bits\n", prop.memoryBusWidth);
+        printf("  L2 Cache Size: %d bytes\n", prop.l2CacheSize);
+        printf("\n");
+    }
+
+    cudaMemset(d_results,0,sizeof(int)*input_count);
+
+    int minGridSize, blockSize;
+    cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, infer, 0, 0);
+    printf("Recommended block size: %d Grid size: %d\n", blockSize, minGridSize);
+
+    for (int i = 0; i < input_count; i++) {
+        infer<<<108,69>>>(d_inputs, d_results, d_weights, d_biases, IT_PER_IN, i);
+        err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            printf("CUDA error: %s\n", cudaGetErrorString(err));
+        }
+    }
+    cudaDeviceSynchronize();
+    cudaMemcpy(results,d_results,(input_count)*(sizeof(int)),cudaMemcpyDeviceToHost);
+    
     FILE* csv_file = fopen("results.csv", "w+");
     fprintf(csv_file, "image_number, guess\n");
-    for (int i = 1; i <= size; i++) {
-        fprintf(csv_file, "%d, %c\n", i, letters[results[i]]);
+    for (int i = 0; i < input_count; i++) {
+        fprintf(csv_file, "%d, %c\n", i+1, letters[results[i]]);
     }
     fclose(csv_file);
 
