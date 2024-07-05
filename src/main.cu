@@ -238,11 +238,8 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < input_count; i++) {
         infer<<<108, 69>>>(d_inputs, d_results, d_weights, d_biases, IT_PER_IN, i);
-        err = cudaGetLastError();
-        if (err != cudaSuccess) {
-            printf("CUDA error: %s\n", cudaGetErrorString(err));
-        }
     }
+    
     cudaDeviceSynchronize();
     cudaMemcpy(results, d_results, (input_count) * (sizeof(int)), cudaMemcpyDeviceToHost);
 
