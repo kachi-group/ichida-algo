@@ -125,7 +125,6 @@ __global__ void infer(matrix** d_inputs, int* d_results, matrix** d_weights, mat
     outputs[1] = new_matrix(65, 1);
 
     for (int i = thread_idx; i < it_per_input; i += num_threads) {
-        // printf("Working on inference %d\n", i);
         propagate_fwd(d_weights[0], input, outputs[0], d_biases[0]);
         relu(outputs[0]->data, 98);
 
@@ -278,7 +277,7 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < input_count; i++) {
         infer<<<108,69>>>(d_inputs, d_results, d_weights, d_biases, IT_PER_IN, i);
         err = cudaGetLastError();
-            if (err != cudaSuccess) {
+        if (err != cudaSuccess) {
             printf("CUDA error: %s\n", cudaGetErrorString(err));
         }
     }
