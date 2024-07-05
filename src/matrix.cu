@@ -37,6 +37,7 @@ matrix* copy_to_device(matrix* h_mat) {
     cudaMalloc(&data, h_mat->rows * h_mat->cols * sizeof(float));
     cudaMemcpy(data, h_mat->data, h_mat->rows * h_mat->cols * sizeof(float), cudaMemcpyHostToDevice);
     alloc<<<1, 1>>>(res, data, h_mat->rows, h_mat->cols);
+    cudaDeviceSynchronize();
     return res;
 }
 
@@ -64,7 +65,7 @@ __device__ void matrix_mul(float* weight, float* input, float* result, int w_row
             sum += weight[i * w_cols + j] * input[j];
         }
         result[i] = sum;
-        }
+    }
 }
 
 __device__ void matrix_add(float* a, float* b, int rows) {
@@ -75,8 +76,7 @@ __device__ void matrix_add(float* a, float* b, int rows) {
 
 __device__ void relu(float* a, int rows) {
     for (int i = 0; i < rows; i++) {
-        if ((a)[i] < (float)0)
-            (a)[i] = (float)0;
+        a[i] = (a[i] > 0) ? a[i] : 0;
     }
 }
 
