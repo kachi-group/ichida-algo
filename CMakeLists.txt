@@ -10,7 +10,7 @@ set(CMAKE_C_STANDARD_REQUIRED True)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Ensure CUDA NVCC flags are set properly
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas --opt-level=3 -O3 --use_fast_math -Xcompiler -march=native -unroll-aggressive -lineinfo -arch=sm_80")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -O3 --use_fast_math -Xcompiler -march=native -unroll-aggressive -arch=sm_80")
 
 set(INC_DIR include)
 set(SRC_DIR src)
