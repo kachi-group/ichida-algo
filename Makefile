@@ -17,6 +17,6 @@ run: build
 	./speed_gpu ./weights_and_biases.txt ./tensors 100000
 
 test: build
-	./speed_gpu ./weights_and_biases.txt ./tensors 100000
+	./speed_gpu ./weights_and_biases.txt ./tensors 1000000
 	mv ./results.csv ./test
 	python3 ./test/verify_csv.py
