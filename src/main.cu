@@ -154,7 +154,6 @@ __global__ void infer(float* d_inputs, int* d_results, matrix** d_weights, matri
         d_results[in_num] = argmax(out1, 52);
     }
 }
-
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     int TotalProcess, ProcessId;
@@ -257,25 +256,22 @@ int main(int argc, char* argv[]) {
     }
     cudaDeviceSynchronize();
 
-    cudaMemcpy(results, d_results, (input_count) * (sizeof(int)), cudaMemcpyDeviceToHost);
-    gettimeofday(&stop1, NULL);
-    printf("Process %d - Inference: %lu us\n", ProcessId,
-           (stop1.tv_sec - start1.tv_sec) * 1000000 + stop1.tv_usec - start1.tv_usec);
-    MPI_Finalize();
-    // this cheat xd dan no verify xddd
-
-    FILE* csv_file = fopen("results.csv", "w+");
-    fprintf(csv_file, "image_number, guess\n");
-    for (int i = 0; i < input_count; i++) {
-        fprintf(csv_file, "%d, %c\n", i + 1, letters[results[i]]);
-        printf("dan is gay =%d \n", ProcessId);
+    if (ProcessId == 0) {
+        cudaMemcpy(results, d_results, (input_count) * (sizeof(int)), cudaMemcpyDeviceToHost);
+        gettimeofday(&stop1, NULL);
+        printf("Process %d - Inference: %lu us\n", ProcessId,
+               (stop1.tv_sec - start1.tv_sec) * 1000000 + stop1.tv_usec - start1.tv_usec);
+        FILE* csv_file = fopen("results.csv", "w+");
+        fprintf(csv_file, "image_number, guess\n");
+        for (int i = 0; i < input_count; i++) {
+            fprintf(csv_file, "%d, %c\n", i + 1, letters[results[i]]);
+        }
+        fclose(csv_file);
     }
-    fclose(csv_file);
-
     // Time taken
     gettimeofday(&stop, NULL);
     printf("Process %d - Total: %lu us\n", ProcessId,
            (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
-
+    MPI_Finalize();
     return EXIT_SUCCESS;
 }
