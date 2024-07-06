@@ -1,6 +1,7 @@
 #include "matrix.cuh"
 #include <dirent.h>
 #include <iostream>
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -156,10 +157,22 @@ __global__ void infer(float* d_inputs, int* d_results, matrix** d_weights, matri
 }
 
 int main(int argc, char* argv[]) {
+    MPI_Init(&argc, &argv);
+    int TotalProcess, ProcessId;
+    MPI_Comm_size(MPI_COMM_WORLD, &TotalProcess);
+    MPI_Comm_rank(MPI_COMM_WORLD, &ProcessId);
+
     if (argc < 4) {
         printf("Not enough arguments. Usage: speed_cpu <path_to_model.txt> <tensors_dir/> <number_of_inferences>\n");
+        MPI_Finalize();
         return EXIT_FAILURE;
     }
+
+    // get no of gpu
+    int deviceCount;
+    cudaGetDeviceCount(&deviceCount);
+    int deviceId = ProcessId % deviceCount;
+    cudaSetDevice(deviceId);
 
     // Start timing
     struct timeval stop, start;
@@ -207,22 +220,29 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    results = (int*)malloc((input_count) * sizeof(int));
-    inputs = (float*)malloc((input_count) * sizeof(float) * 225);
+    int local_input_count = input_count / TotalProcess + (ProcessId < (input_count % TotalProcess) ? 1 : 0);
+    int start_idx = ProcessId * (input_count / TotalProcess) + std::min(ProcessId, input_count % TotalProcess);
 
-    cudaMalloc(&d_results, (input_count) * sizeof(int));
-    cudaMalloc(&d_inputs, (input_count) * sizeof(float) * 225);
+    results = (int*)malloc(local_input_count * sizeof(int));
+    inputs = (float*)malloc(local_input_count * sizeof(float) * 225);
+
+    cudaMalloc(&d_results, local_input_count * sizeof(int));
+    cudaMalloc(&d_inputs, local_input_count * sizeof(float) * 225);
 
     dir = opendir(directory_path);
+    int counter = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
             strcpy(file_num_str, entry->d_name);
             file_num_str[strlen(entry->d_name) - 7] = '\0';
             file_num = atoi(entry->d_name);
-            strcpy(file_name, directory_path);
-            strcat(file_name, "/");
-            strcat(file_name, entry->d_name);
-            read_tensor((float*)&inputs[(file_num - 1) * 225], file_name);
+            if (file_num >= start_idx + 1 && file_num <= start_idx + local_input_count) {
+                strcpy(file_name, directory_path);
+                strcat(file_name, "/");
+                strcat(file_name, entry->d_name);
+                read_tensor(&inputs[counter * 225], file_name);
+                counter++;
+            }
         }
     }
 
@@ -230,71 +250,47 @@ int main(int argc, char* argv[]) {
     free(file_num_str);
     closedir(dir);
 
-    cudaMemcpy(d_inputs, inputs, sizeof(float) * 225 * input_count, cudaMemcpyHostToDevice);
-
-    int deviceCount;
-    cudaError_t err = cudaGetDeviceCount(&deviceCount);
-    if (err != cudaSuccess) {
-        printf("Error: %s\n", cudaGetErrorString(err));
-        return -1;
-    }
-
-    for (int i = 0; i < deviceCount; ++i) {
-        cudaDeviceProp prop;
-        cudaGetDeviceProperties(&prop, i);
-        printf("Device %d:\n", i);
-        printf("  Device Name: %s\n", prop.name);
-        printf("  Compute Capability: %d.%d\n", prop.major, prop.minor);
-        printf("  Total Global Memory: %lu bytes\n", prop.totalGlobalMem);
-        printf("  Shared Memory per Block: %lu bytes\n", prop.sharedMemPerBlock);
-        printf("  Registers per Block: %d\n", prop.regsPerBlock);
-        printf("  Warp Size: %d\n", prop.warpSize);
-        printf("  Max Threads per Block: %d\n", prop.maxThreadsPerBlock);
-        printf("  Max threads per SM: %d\n", prop.maxThreadsPerMultiProcessor);
-        printf("  Max Threads Dim: (%d, %d, %d)\n", prop.maxThreadsDim[0], prop.maxThreadsDim[1],
-               prop.maxThreadsDim[2]);
-        printf("  Max Grid Size: (%d, %d, %d)\n", prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
-        printf("  Clock Rate: %d kHz\n", prop.clockRate);
-        printf("  Total Constant Memory: %lu bytes\n", prop.totalConstMem);
-        printf("  Multiprocessor Count: %d\n", prop.multiProcessorCount);
-        printf("  Memory Clock Rate: %d kHz\n", prop.memoryClockRate);
-        printf("  Memory Bus Width: %d bits\n", prop.memoryBusWidth);
-        printf("  L2 Cache Size: %d bytes\n", prop.l2CacheSize);
-        printf("\n");
-    }
-
-    int minGridSize, blockSize;
-    cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, infer, 0, 0);
-    printf("Recommended block size: %d Grid size: %d\n", blockSize, minGridSize);
+    cudaMemcpy(d_inputs, inputs, sizeof(float) * 225 * local_input_count, cudaMemcpyHostToDevice);
 
     int it_num = atoi(argv[3]);
     struct timeval stop1, start1;
     gettimeofday(&start1, NULL);
 
     cudaDeviceSynchronize();
-    for (int i = 0; i < input_count; i++) {
+    for (int i = 0; i < local_input_count; i++) {
         infer<<<BLOCKS, THREADS_PER_BLOCK>>>(d_inputs, d_results, d_weights, d_biases, it_num, i);
-        err = cudaGetLastError();
-        if (err != cudaSuccess) {
-            printf("CUDA error: %s\n", cudaGetErrorString(err));
-        }
+        CUDA_CHECK(cudaGetLastError());
     }
     cudaDeviceSynchronize();
 
-    cudaMemcpy(results, d_results, (input_count) * (sizeof(int)), cudaMemcpyDeviceToHost);
+    cudaMemcpy(results, d_results, local_input_count * sizeof(int), cudaMemcpyDeviceToHost);
     gettimeofday(&stop1, NULL);
-    printf("- Inference: %lu us\n", (stop1.tv_sec - start1.tv_sec) * 1000000 + stop1.tv_usec - start1.tv_usec);
+    printf("Process %d - Inference: %lu us\n", ProcessId,
+           (stop1.tv_sec - start1.tv_sec) * 1000000 + stop1.tv_usec - start1.tv_usec);
 
-    FILE* csv_file = fopen("results.csv", "w+");
-    fprintf(csv_file, "image_number, guess\n");
-    for (int i = 0; i < input_count; i++) {
-        fprintf(csv_file, "%d, %c\n", i + 1, letters[results[i]]);
+    // Gather results at root process
+    int* all_results = nullptr;
+    if (ProcessId == 0) {
+        all_results = (int*)malloc(input_count * sizeof(int));
     }
-    fclose(csv_file);
+
+    MPI_Gather(results, local_input_count, MPI_INT, all_results, local_input_count, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (ProcessId == 0) {
+        FILE* csv_file = fopen("results.csv", "w+");
+        fprintf(csv_file, "image_number, guess\n");
+        for (int i = 0; i < input_count; i++) {
+            fprintf(csv_file, "%d, %c\n", i + 1, letters[all_results[i]]);
+        }
+        fclose(csv_file);
+        free(all_results);
+    }
 
     // Time taken
     gettimeofday(&stop, NULL);
-    printf("- Total: %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
+    printf("Process %d - Total: %lu us\n", ProcessId,
+           (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
 
+    MPI_Finalize();
     return EXIT_SUCCESS;
 }

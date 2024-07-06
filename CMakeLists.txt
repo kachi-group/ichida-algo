@@ -17,10 +17,14 @@ set(SRC_DIR src)
 
 include_directories(${INC_DIR})
 
+# Find MPI package
+find_package(MPI REQUIRED)
+include_directories(${MPI_INCLUDE_PATH})
+
 # Source files for GPU
 file(GLOB_RECURSE CUDA_SOURCE_FILES ${SRC_DIR}/*.cu)
 
 # Create GPU executable
 add_executable(speed_gpu ${CUDA_SOURCE_FILES})
 set_target_properties(speed_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-target_link_libraries(speed_gpu m)
+target_link_libraries(speed_gpu m ${MPI_LIBRARIES})
