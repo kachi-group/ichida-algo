@@ -26,7 +26,6 @@ matrix* new_matrix_d(int rows, int cols) {
     float* data;
     cudaMalloc(&data, rows * cols * sizeof(float));
     alloc<<<1, 1>>>(res, data, rows, cols);
-    cudaDeviceSynchronize();
     return res;
 }
 
@@ -37,7 +36,6 @@ matrix* copy_to_device(matrix* h_mat) {
     cudaMalloc(&data, h_mat->rows * h_mat->cols * sizeof(float));
     cudaMemcpy(data, h_mat->data, h_mat->rows * h_mat->cols * sizeof(float), cudaMemcpyHostToDevice);
     alloc<<<1, 1>>>(res, data, h_mat->rows, h_mat->cols);
-    cudaDeviceSynchronize();
     return res;
 }
 
