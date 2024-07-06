@@ -26,7 +26,6 @@ matrix* new_matrix_d(int rows, int cols) {
     float* data;
     cudaMalloc(&data, rows * cols * sizeof(float));
     alloc<<<1, 1>>>(res, data, rows, cols);
-    cudaDeviceSynchronize();
     return res;
 }
 
@@ -37,7 +36,6 @@ matrix* copy_to_device(matrix* h_mat) {
     cudaMalloc(&data, h_mat->rows * h_mat->cols * sizeof(float));
     cudaMemcpy(data, h_mat->data, h_mat->rows * h_mat->cols * sizeof(float), cudaMemcpyHostToDevice);
     alloc<<<1, 1>>>(res, data, h_mat->rows, h_mat->cols);
-    cudaDeviceSynchronize();
     return res;
 }
 
@@ -89,17 +87,18 @@ static __device__ inline float fastexp(float x) {
 }
 
 __device__ void softmax(float* a, int rows) {
-    float res = (float)0;
-    for (int i = 0; i < rows; i++) {
-        res += exp(a[i]);
+    float sum = 0.0;
+    for (size_t i = 0; i < rows; i++) {
+        sum += __expf(a[i]);
     }
-    for (int i = 0; i < rows; i++) {
-        a[i] /= res;
+    float t = __logf(sum);
+    for (size_t i = 0; i < rows; i++) {
+        a[i] = __expf(a[i] - t);
     }
 }
 
 __device__ int argmax(float* a, int rows) {
-    int res = a[0];
+    float res = a[0];
     int idx = 0;
     for (int i = 0; i < rows; i++) {
         if (res < a[i]) {

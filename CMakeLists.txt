@@ -5,12 +5,12 @@ project(ichida-algo LANGUAGES C CXX CUDA)
 
 # Set compiler flags
 set(CMAKE_C_FLAGS "-O3 -march=native -ffast-math -funroll-loops -Wall -Wextra")
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED True)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Ensure CUDA NVCC flags are set properly
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -arch=sm_75")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -O3 --use_fast_math -Xcompiler -march=native -unroll-aggressive -arch=sm_80")
 
 set(INC_DIR include)
 set(SRC_DIR src)
