@@ -110,21 +110,27 @@ __device__ void propagate_fwd(matrix* weights, float* input_layer, float* output
 }
 
 #define BLOCKS 108
-#define THREADS_PER_BLOCK 320
+#define THREADS_PER_BLOCK 1024
 
 __global__ void infer(float* d_inputs, int* d_results, matrix** d_weights, matrix** d_biases, int it_per_input,
-                      int in_num, float* out_1, float* out_2) {
+                      int in_num) {
+
+    __shared__ float sharedInput[225];
+    float out1[98];
+    float out2[65];
+
     int num_threads = blockDim.x * gridDim.x;
     int thread_idx = (blockIdx.x * blockDim.x + threadIdx.x);
-    if (thread_idx > it_per_input)
-        return;
 
-    float* out1 = (float*)&out_1[thread_idx * 98];
-    float* out2 = (float*)&out_2[thread_idx * 65];
     float* input = (float*)&d_inputs[in_num * 225];
 
+    if (threadIdx.x < 225) {
+        sharedInput[threadIdx.x] = input[threadIdx.x];
+    }
+    __syncthreads();
+
     for (int i = thread_idx; i < it_per_input; i += num_threads) {
-        propagate_fwd(d_weights[0], input, out1, d_biases[0]);
+        propagate_fwd(d_weights[0], sharedInput, out1, d_biases[0]);
         relu(out1, 98);
 
         propagate_fwd(d_weights[1], out1, out2, d_biases[1]);
@@ -261,19 +267,13 @@ int main(int argc, char* argv[]) {
     cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, infer, 0, 0);
     printf("Recommended block size: %d Grid size: %d\n", blockSize, minGridSize);
 
-    float* outputs_1;
-    float* outputs_2;
-
-    cudaMalloc((void**)&outputs_1, sizeof(float) * 98 * THREADS_PER_BLOCK * BLOCKS);
-    cudaMalloc((void**)&outputs_2, sizeof(float) * 65 * THREADS_PER_BLOCK * BLOCKS);
-
     int it_num = atoi(argv[3]);
     struct timeval stop1, start1;
     gettimeofday(&start1, NULL);
 
     cudaDeviceSynchronize();
     for (int i = 0; i < input_count; i++) {
-        infer<<<BLOCKS, THREADS_PER_BLOCK>>>(d_inputs, d_results, d_weights, d_biases, it_num, i, outputs_1, outputs_2);
+        infer<<<BLOCKS, THREADS_PER_BLOCK>>>(d_inputs, d_results, d_weights, d_biases, it_num, i);
         err = cudaGetLastError();
         if (err != cudaSuccess) {
             printf("CUDA error: %s\n", cudaGetErrorString(err));
