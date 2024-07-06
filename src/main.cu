@@ -156,9 +156,9 @@ __global__ void infer(float* d_inputs, int* d_results, matrix** d_weights, matri
 }
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
-    int TotalProcess, ProcessId;
-    MPI_Comm_size(MPI_COMM_WORLD, &TotalProcess); // size
-    MPI_Comm_rank(MPI_COMM_WORLD, &ProcessId);    // gpuid
+    int totalProcess, processId;
+    MPI_Comm_size(MPI_COMM_WORLD, &totalProcess); // size
+    MPI_Comm_rank(MPI_COMM_WORLD, &processId);    // gpuid
 
     if (argc < 4) {
         printf("Not enough arguments. Usage: speed_cpu <path_to_model.txt> <tensors_dir/> <number_of_inferences>\n");
@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
     // get no of gpu
     int deviceCount;
     cudaGetDeviceCount(&deviceCount);
-    int deviceId = ProcessId % deviceCount;
+    int deviceId = processId % deviceCount;
     cudaSetDevice(deviceId);
 
     // Start timing
@@ -217,6 +217,7 @@ int main(int argc, char* argv[]) {
             input_count++;
         }
     }
+
     results = (int*)malloc((input_count) * sizeof(int));
     inputs = (float*)malloc((input_count) * sizeof(float) * 225);
 
@@ -243,8 +244,7 @@ int main(int argc, char* argv[]) {
     cudaMemcpy(d_inputs, inputs, sizeof(float) * 225 * input_count, cudaMemcpyHostToDevice);
 
     int it_num = atoi(argv[3]);
-    // divide this doma       //when u launch 8 gpu it divide automatically yeah  //handles remainder
-    int gpu_it_num = it_num / TotalProcess + (ProcessId < (it_num % TotalProcess) ? 1 : 0);
+    int gpu_it_num = it_num / totalProcess + (processId < (it_num % totalProcess) ? 1 : 0);
 
     struct timeval stop1, start1;
     gettimeofday(&start1, NULL);
@@ -256,10 +256,10 @@ int main(int argc, char* argv[]) {
     }
     cudaDeviceSynchronize();
 
-    if (ProcessId == 0) {
+    if (processId == 0) {
         cudaMemcpy(results, d_results, (input_count) * (sizeof(int)), cudaMemcpyDeviceToHost);
         gettimeofday(&stop1, NULL);
-        printf("Process %d - Inference: %lu us\n", ProcessId,
+        printf("Process %d - Inference: %lu us\n", processId,
                (stop1.tv_sec - start1.tv_sec) * 1000000 + stop1.tv_usec - start1.tv_usec);
         FILE* csv_file = fopen("results.csv", "w+");
         fprintf(csv_file, "image_number, guess\n");
@@ -270,7 +270,7 @@ int main(int argc, char* argv[]) {
     }
     // Time taken
     gettimeofday(&stop, NULL);
-    printf("Process %d - Total: %lu us\n", ProcessId,
+    printf("Process %d - Total: %lu us\n", processId,
            (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
     MPI_Finalize();
     return EXIT_SUCCESS;
