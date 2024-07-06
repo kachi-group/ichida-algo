@@ -1,6 +1,6 @@
 #include "matrix.cuh"
 #include <dirent.h>
-#include <iostream>
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -154,12 +154,23 @@ __global__ void infer(float* d_inputs, int* d_results, matrix** d_weights, matri
         d_results[in_num] = argmax(out1, 52);
     }
 }
-
 int main(int argc, char* argv[]) {
+    MPI_Init(&argc, &argv);
+    int totalProcess, processId;
+    MPI_Comm_size(MPI_COMM_WORLD, &totalProcess); // size
+    MPI_Comm_rank(MPI_COMM_WORLD, &processId);    // gpuid
+
     if (argc < 4) {
         printf("Not enough arguments. Usage: speed_cpu <path_to_model.txt> <tensors_dir/> <number_of_inferences>\n");
+        MPI_Finalize();
         return EXIT_FAILURE;
     }
+
+    // get no of gpu
+    int deviceCount;
+    cudaGetDeviceCount(&deviceCount);
+    int deviceId = processId % deviceCount;
+    cudaSetDevice(deviceId);
 
     // Start timing
     struct timeval stop, start;
@@ -232,69 +243,35 @@ int main(int argc, char* argv[]) {
 
     cudaMemcpy(d_inputs, inputs, sizeof(float) * 225 * input_count, cudaMemcpyHostToDevice);
 
-    int deviceCount;
-    cudaError_t err = cudaGetDeviceCount(&deviceCount);
-    if (err != cudaSuccess) {
-        printf("Error: %s\n", cudaGetErrorString(err));
-        return -1;
-    }
-
-    for (int i = 0; i < deviceCount; ++i) {
-        cudaDeviceProp prop;
-        cudaGetDeviceProperties(&prop, i);
-        printf("Device %d:\n", i);
-        printf("  Device Name: %s\n", prop.name);
-        printf("  Compute Capability: %d.%d\n", prop.major, prop.minor);
-        printf("  Total Global Memory: %lu bytes\n", prop.totalGlobalMem);
-        printf("  Shared Memory per Block: %lu bytes\n", prop.sharedMemPerBlock);
-        printf("  Registers per Block: %d\n", prop.regsPerBlock);
-        printf("  Warp Size: %d\n", prop.warpSize);
-        printf("  Max Threads per Block: %d\n", prop.maxThreadsPerBlock);
-        printf("  Max threads per SM: %d\n", prop.maxThreadsPerMultiProcessor);
-        printf("  Max Threads Dim: (%d, %d, %d)\n", prop.maxThreadsDim[0], prop.maxThreadsDim[1],
-               prop.maxThreadsDim[2]);
-        printf("  Max Grid Size: (%d, %d, %d)\n", prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
-        printf("  Clock Rate: %d kHz\n", prop.clockRate);
-        printf("  Total Constant Memory: %lu bytes\n", prop.totalConstMem);
-        printf("  Multiprocessor Count: %d\n", prop.multiProcessorCount);
-        printf("  Memory Clock Rate: %d kHz\n", prop.memoryClockRate);
-        printf("  Memory Bus Width: %d bits\n", prop.memoryBusWidth);
-        printf("  L2 Cache Size: %d bytes\n", prop.l2CacheSize);
-        printf("\n");
-    }
-
-    int minGridSize, blockSize;
-    cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, infer, 0, 0);
-    printf("Recommended block size: %d Grid size: %d\n", blockSize, minGridSize);
-
     int it_num = atoi(argv[3]);
+    int gpu_it_num = it_num / totalProcess + (processId < (it_num % totalProcess) ? 1 : 0);
+
     struct timeval stop1, start1;
     gettimeofday(&start1, NULL);
 
     cudaDeviceSynchronize();
     for (int i = 0; i < input_count; i++) {
-        infer<<<BLOCKS, THREADS_PER_BLOCK>>>(d_inputs, d_results, d_weights, d_biases, it_num, i);
-        err = cudaGetLastError();
-        if (err != cudaSuccess) {
-            printf("CUDA error: %s\n", cudaGetErrorString(err));
-        }
+        infer<<<BLOCKS, THREADS_PER_BLOCK>>>(d_inputs, d_results, d_weights, d_biases, gpu_it_num, i);
+        CUDA_CHECK(cudaGetLastError());
     }
     cudaDeviceSynchronize();
 
-    cudaMemcpy(results, d_results, (input_count) * (sizeof(int)), cudaMemcpyDeviceToHost);
-    gettimeofday(&stop1, NULL);
-    printf("- Inference: %lu us\n", (stop1.tv_sec - start1.tv_sec) * 1000000 + stop1.tv_usec - start1.tv_usec);
-
-    FILE* csv_file = fopen("results.csv", "w+");
-    fprintf(csv_file, "image_number, guess\n");
-    for (int i = 0; i < input_count; i++) {
-        fprintf(csv_file, "%d, %c\n", i + 1, letters[results[i]]);
+    if (processId == 0) {
+        cudaMemcpy(results, d_results, (input_count) * (sizeof(int)), cudaMemcpyDeviceToHost);
+        gettimeofday(&stop1, NULL);
+        printf("Process %d - Inference: %lu us\n", processId,
+               (stop1.tv_sec - start1.tv_sec) * 1000000 + stop1.tv_usec - start1.tv_usec);
+        FILE* csv_file = fopen("results.csv", "w+");
+        fprintf(csv_file, "image_number, guess\n");
+        for (int i = 0; i < input_count; i++) {
+            fprintf(csv_file, "%d, %c\n", i + 1, letters[results[i]]);
+        }
+        fclose(csv_file);
     }
-    fclose(csv_file);
-
     // Time taken
     gettimeofday(&stop, NULL);
-    printf("- Total: %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
-
+    printf("Process %d - Total: %lu us\n", processId,
+           (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
+    MPI_Finalize();
     return EXIT_SUCCESS;
 }

@@ -14,9 +14,11 @@ build:
 	cp build/speed_gpu ./
 
 run: build
-	./speed_gpu ./weights_and_biases.txt ./tensors 100000
+	n_gpus=$(shell nvidia-smi --query-gpu=name --format=csv,noheader | wc -l); \
+	mpirun -np $$n_gpus ./speed_gpu ./weights_and_biases.txt ./tensors 100000
 
 test: build
-	./speed_gpu ./weights_and_biases.txt ./tensors 1000000
+	n_gpus=$(shell nvidia-smi --query-gpu=name --format=csv,noheader | wc -l); \
+	mpirun -np $$n_gpus ./speed_gpu ./weights_and_biases.txt ./tensors 1000000
 	mv ./results.csv ./test
 	python3 ./test/verify_csv.py
