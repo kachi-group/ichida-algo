@@ -15,10 +15,10 @@ build:
 
 run: build
 	n_gpus=$(shell nvidia-smi --query-gpu=name --format=csv,noheader | wc -l); \
-	mpirun --oversubscribe -np $$n_gpus ./speed_gpu ./weights_and_biases.txt ./tensors 100000
+	mpirun -np $$n_gpus ./speed_gpu ./weights_and_biases.txt ./tensors 100000
 
 test: build
 	n_gpus=$(shell nvidia-smi --query-gpu=name --format=csv,noheader | wc -l); \
-	mpirun --oversubscribe -np $$n_gpus ./speed_gpu ./weights_and_biases.txt ./tensors 1000000
+	mpirun -np $$n_gpus ./speed_gpu ./weights_and_biases.txt ./tensors 1000000
 	mv ./results.csv ./test
 	python3 ./test/verify_csv.py
