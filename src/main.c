@@ -28,7 +28,7 @@ char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 
 void propagate_fwd(const matrix* weights, const vector* inputs, vector* results, const vector* biases) {
     sgemv_t_tuned(weights->data, inputs->data, results->data, weights->cols, weights->rows);
     // Add biases onto results
-    vector_add_inplace(results->len, biases->data, results->data);
+    vector_add_inplace(biases->len, biases->data, results->data);
 }
 
 // Basic version, too many aligned_alloc
@@ -89,31 +89,26 @@ u8 infer_reuse_layers_thread(vector* input, matrix** weights, vector** biases) {
     propagate_fwd(weights[1], outputs[0], outputs[1], biases[1]);
     relu_inplace(outputs[1]->data, 65);
 
-    outputs[0]->len = 50;
     memset(outputs[0]->data, 0, 50 * sizeof(f32));
 
     propagate_fwd(weights[2], outputs[1], outputs[0], biases[2]);
     relu_inplace(outputs[0]->data, 50);
 
-    outputs[1]->len = 30;
     memset(outputs[1]->data, 0, 30 * sizeof(f32));
 
     propagate_fwd(weights[3], outputs[0], outputs[1], biases[3]);
     relu_inplace(outputs[1]->data, 30);
 
-    outputs[0]->len = 25;
     memset(outputs[0]->data, 0, 25 * sizeof(f32));
 
     propagate_fwd(weights[4], outputs[1], outputs[0], biases[4]);
     relu_inplace(outputs[0]->data, 25);
 
-    outputs[1]->len = 40;
     memset(outputs[1]->data, 0, 40 * sizeof(f32));
 
     propagate_fwd(weights[5], outputs[0], outputs[1], biases[5]);
     relu_inplace(outputs[1]->data, 40);
 
-    outputs[0]->len = 52;
     memset(outputs[0]->data, 0, 52 * sizeof(f32));
 
     propagate_fwd(weights[6], outputs[1], outputs[0], biases[6]);
