@@ -5,8 +5,9 @@ typedef unsigned char u8;
 typedef signed long i64;
 
 #define KERN_COLS 8
-#define KERN_ROWS 2
-#define SIMD_ALGN 64
+#define KERN_ROWS 4
+#define SIMD_ALIGN 32
+#define SIMD_ALIGN_F32 (SIMD_ALIGN / 4) // f32 is 4 bytes
 
 typedef struct vector {
     int len;
