@@ -16,7 +16,7 @@ typedef unsigned char u8;
 #define NUM_LAYERS 7
 
 #define TENSOR_SIZE 225
-#define TSIZE_ALGN_BYTES (((TENSOR_SIZE + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN) * sizeof(f32))
+#define TSIZE_ALIGN_BYTES (((TENSOR_SIZE + SIMD_ALIGN_F32 - 1) / SIMD_ALIGN_F32 * SIMD_ALIGN_F32) * sizeof(f32))
 
 matrix* weights[NUM_LAYERS];
 vector* biases[NUM_LAYERS];
@@ -28,7 +28,7 @@ char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 
 void propagate_fwd(const matrix* weights, const vector* inputs, vector* results, const vector* biases) {
     sgemv_t_tuned(weights->data, inputs->data, results->data, weights->cols, weights->rows);
     // Add biases onto results
-    vector_add_inplace(results->len, biases->data, results->data);
+    vector_add_inplace(biases->len, biases->data, results->data);
 }
 
 // Basic version, too many aligned_alloc
@@ -89,31 +89,26 @@ u8 infer_reuse_layers_thread(vector* input, matrix** weights, vector** biases) {
     propagate_fwd(weights[1], outputs[0], outputs[1], biases[1]);
     relu_inplace(outputs[1]->data, 65);
 
-    outputs[0]->len = 50;
     memset(outputs[0]->data, 0, 50 * sizeof(f32));
 
     propagate_fwd(weights[2], outputs[1], outputs[0], biases[2]);
     relu_inplace(outputs[0]->data, 50);
 
-    outputs[1]->len = 30;
     memset(outputs[1]->data, 0, 30 * sizeof(f32));
 
     propagate_fwd(weights[3], outputs[0], outputs[1], biases[3]);
     relu_inplace(outputs[1]->data, 30);
 
-    outputs[0]->len = 25;
     memset(outputs[0]->data, 0, 25 * sizeof(f32));
 
     propagate_fwd(weights[4], outputs[1], outputs[0], biases[4]);
     relu_inplace(outputs[0]->data, 25);
 
-    outputs[1]->len = 40;
     memset(outputs[1]->data, 0, 40 * sizeof(f32));
 
     propagate_fwd(weights[5], outputs[0], outputs[1], biases[5]);
     relu_inplace(outputs[1]->data, 40);
 
-    outputs[0]->len = 52;
     memset(outputs[0]->data, 0, 52 * sizeof(f32));
 
     propagate_fwd(weights[6], outputs[1], outputs[0], biases[6]);
@@ -169,7 +164,7 @@ int main(int argc, char* argv[]) {
     printf("Number of input tensors: %d\n", input_count);
     printf("Iterations per input: %d\n", iter_per_in);
 
-    f32* tensors = (f32*)aligned_alloc(SIMD_ALGN, TSIZE_ALGN_BYTES * input_count);
+    f32* tensors = (f32*)aligned_alloc(SIMD_ALIGN, TSIZE_ALIGN_BYTES * input_count);
 
     // Read and process inputs
     char* file_path = (char*)malloc((256) * sizeof(char));
@@ -185,7 +180,7 @@ int main(int argc, char* argv[]) {
             strcpy(file_path, directory_path);
             strcat(file_path, "/");
             strcat(file_path, entry->d_name);
-            read_tensor((f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * (file_num - 1)], file_path);
+            read_tensor((f32*)&tensors[TSIZE_ALIGN_BYTES / sizeof(f32) * (file_num - 1)], file_path);
         }
     }
     closedir(dir);
@@ -209,7 +204,7 @@ int main(int argc, char* argv[]) {
             // printf("Thread %d: Processing input %d\n", omp_get_thread_num(), i);
 
             vector* input = new_vec_aligned(TENSOR_SIZE);
-            memcpy(input->data, (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i], TENSOR_SIZE * sizeof(f32));
+            memcpy(input->data, (f32*)&tensors[TSIZE_ALIGN_BYTES / sizeof(f32) * i], TENSOR_SIZE * sizeof(f32));
 
 #pragma omp for
             for (int j = 0; j < iter_per_in - 1; j++) {
@@ -230,7 +225,7 @@ int main(int argc, char* argv[]) {
     vector* input = new_vec_aligned(TENSOR_SIZE);
     u8* results = (u8*)malloc(input_count * sizeof(u8));
     for (int i = 0; i < input_count; i++) {
-        input->data = (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i];
+        input->data = (f32*)&tensors[TSIZE_ALIGN_BYTES / sizeof(f32) * i];
         results[i] = infer_reuse_layers_thread(input, weights, biases);
     }
 

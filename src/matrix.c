@@ -15,8 +15,8 @@ matrix* new_matrix_aligned(int rows, int cols) {
     new_mat->cols = cols;
 
     // Align entire array for simd access and better cache line utilisation
-    new_mat->data =
-        (f32*)aligned_alloc(SIMD_ALGN, (((kern_align_f32 * sizeof(f32)) + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN));
+    new_mat->data = (f32*)aligned_alloc(
+        SIMD_ALIGN, (((kern_align_f32 * sizeof(f32)) + SIMD_ALIGN_F32 - 1) / SIMD_ALIGN_F32 * SIMD_ALIGN_F32));
 
     return new_mat;
 }
@@ -30,8 +30,8 @@ vector* new_vec_aligned(int len) {
     new_vec->len = len;
 
     // Align entire array for simd access and better cache line utilisation
-    new_vec->data =
-        (f32*)aligned_alloc(SIMD_ALGN, (((kern_align_f32 * sizeof(f32)) + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN));
+    new_vec->data = (f32*)aligned_alloc(
+        SIMD_ALIGN, (((kern_align_f32 * sizeof(f32)) + SIMD_ALIGN_F32 - 1) / SIMD_ALIGN_F32 * SIMD_ALIGN_F32));
 
     memset(new_vec->data, 0, kern_align_f32 * sizeof(f32));
 
@@ -114,8 +114,8 @@ void transpose_mat_inplace(matrix* in) {
     // Swapped for transpose
     int pad_w_rows = (cols_before + KERN_ROWS - 1) / KERN_ROWS * KERN_ROWS;
     int pad_w_width = (rows_before + KERN_COLS - 1) / KERN_COLS * KERN_COLS;
-    f32* transposed = (f32*)aligned_alloc(
-        SIMD_ALGN, (((pad_w_rows * pad_w_width * sizeof(f32)) + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN));
+    f32* transposed = (f32*)aligned_alloc(SIMD_ALIGN, (((pad_w_rows * pad_w_width * sizeof(f32)) + SIMD_ALIGN_F32 - 1) /
+                                                       SIMD_ALIGN_F32 * SIMD_ALIGN_F32));
     memset(transposed, 0, pad_w_rows * pad_w_width * sizeof(f32));
 
     for (int row = 0; row < rows_before; row++) {
