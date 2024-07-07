@@ -16,7 +16,7 @@ typedef unsigned char u8;
 #define NUM_LAYERS 7
 
 #define TENSOR_SIZE 225
-#define TSIZE_ALGN_BYTES (((TENSOR_SIZE + SIMD_ALGN - 1) / SIMD_ALGN * SIMD_ALGN) * sizeof(f32))
+#define TSIZE_ALIGN_BYTES (((TENSOR_SIZE + SIMD_ALIGN_F32 - 1) / SIMD_ALIGN_F32 * SIMD_ALIGN_F32) * sizeof(f32))
 
 matrix* weights[NUM_LAYERS];
 vector* biases[NUM_LAYERS];
@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
     printf("Number of input tensors: %d\n", input_count);
     printf("Iterations per input: %d\n", iter_per_in);
 
-    f32* tensors = (f32*)aligned_alloc(SIMD_ALGN, TSIZE_ALGN_BYTES * input_count);
+    f32* tensors = (f32*)aligned_alloc(SIMD_ALIGN, TSIZE_ALIGN_BYTES * input_count);
 
     // Read and process inputs
     char* file_path = (char*)malloc((256) * sizeof(char));
@@ -185,7 +185,7 @@ int main(int argc, char* argv[]) {
             strcpy(file_path, directory_path);
             strcat(file_path, "/");
             strcat(file_path, entry->d_name);
-            read_tensor((f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * (file_num - 1)], file_path);
+            read_tensor((f32*)&tensors[TSIZE_ALIGN_BYTES / sizeof(f32) * (file_num - 1)], file_path);
         }
     }
     closedir(dir);
@@ -200,7 +200,7 @@ int main(int argc, char* argv[]) {
     // int NUM_THREADS = sysconf(_SC_NPROCESSORS_ONLN);
 
     if (iter_per_in > 1)
-#pragma omp parallel
+    #pragma omp parallel
     {
         int force = 0;
         u8* results_local = (u8*)malloc(input_count * sizeof(u8));
@@ -209,9 +209,9 @@ int main(int argc, char* argv[]) {
             // printf("Thread %d: Processing input %d\n", omp_get_thread_num(), i);
 
             vector* input = new_vec_aligned(TENSOR_SIZE);
-            memcpy(input->data, (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i], TENSOR_SIZE * sizeof(f32));
+            memcpy(input->data, (f32*)&tensors[TSIZE_ALIGN_BYTES / sizeof(f32) * i], TENSOR_SIZE * sizeof(f32));
 
-#pragma omp for
+            #pragma omp for
             for (int j = 0; j < iter_per_in - 1; j++) {
                 // Using global memory for model seems to be faster
                 results_local[i] = infer_reuse_layers_thread(input, weights, biases);
@@ -230,7 +230,7 @@ int main(int argc, char* argv[]) {
     vector* input = new_vec_aligned(TENSOR_SIZE);
     u8* results = (u8*)malloc(input_count * sizeof(u8));
     for (int i = 0; i < input_count; i++) {
-        input->data = (f32*)&tensors[TSIZE_ALGN_BYTES / sizeof(f32) * i];
+        input->data = (f32*)&tensors[TSIZE_ALIGN_BYTES / sizeof(f32) * i];
         results[i] = infer_reuse_layers_thread(input, weights, biases);
     }
 
