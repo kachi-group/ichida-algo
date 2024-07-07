@@ -195,7 +195,7 @@ int main(int argc, char* argv[]) {
     // int NUM_THREADS = sysconf(_SC_NPROCESSORS_ONLN);
 
     if (iter_per_in > 1)
-    #pragma omp parallel
+#pragma omp parallel
     {
         int force = 0;
         u8* results_local = (u8*)malloc(input_count * sizeof(u8));
@@ -206,7 +206,7 @@ int main(int argc, char* argv[]) {
             vector* input = new_vec_aligned(TENSOR_SIZE);
             memcpy(input->data, (f32*)&tensors[TSIZE_ALIGN_BYTES / sizeof(f32) * i], TENSOR_SIZE * sizeof(f32));
 
-            #pragma omp for
+#pragma omp for
             for (int j = 0; j < iter_per_in - 1; j++) {
                 // Using global memory for model seems to be faster
                 results_local[i] = infer_reuse_layers_thread(input, weights, biases);
