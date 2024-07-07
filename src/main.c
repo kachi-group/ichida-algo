@@ -34,8 +34,8 @@ void propagate_fwd(const matrix* weights, const float* inputs, float* results, c
 // Minumum number of alligned_alloc without breaking things.
 // This code f***ing sucks but its fast so uhhhh
 u8 infer_reuse_layers_thread(vector* input, matrix** weights, vector** biases) {
-    float out0[98] __attribute__ ((aligned(SIMD_ALIGN))) = {0};
-    float out1[65] __attribute__ ((aligned(SIMD_ALIGN))) = {0};
+    float out0[98] __attribute__((aligned(SIMD_ALIGN))) = {0};
+    float out1[65] __attribute__((aligned(SIMD_ALIGN))) = {0};
 
     propagate_fwd(weights[0], input->data, out0, biases[0]);
     relu_inplace(out0, 98);
