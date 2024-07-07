@@ -7,7 +7,7 @@ typedef signed long i64;
 #define KERN_COLS 8
 #define KERN_ROWS 4
 #define SIMD_ALIGN 32
-#define SIMD_ALIGN_F32 (SIMD_ALIGN / sizeof(f32)) // f32 is 4 bytes
+#define SIMD_ALIGN_F32 (SIMD_ALIGN / sizeof(f32))
 
 typedef struct vector {
     int len;
