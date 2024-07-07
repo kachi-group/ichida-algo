@@ -33,12 +33,17 @@ us only owns a MacBook).
 the QDX team for the convenient test machine that they set up for the competition, as it helped us get the multi-GPU aspect as correct as we could.
 
 ## Results
-Thes are the best runs that we have achieved for each category:
-- CPU single thread: TBD
-- CPU multithread (12 threads): TBD
-- CPU multithread (256 threads): TBD
-- GPU single: TBD
-- GPU multi (8 cards): TBD
+Thes are the best runs that we have achieved **(all categories were tested on 52 inputs)**:
+
+| Hardware Used | Parallelism | Best Run / Nr. of iterations | Throughput (time for 1B) |
+|---------------|-------------|-----------------------------:|-------------------------:|
+| Ryzen 5600x   | 1 thread    | 7.224s   / 100k per input    | 23 minutes 11.42 seconds |
+| Ryzen 5600x   | 12 threads  | 11.631s  / 1M per input      | 3 minutes 43.62 seconds  |
+| EPYC 7J13*    | 240 threads | 123.258s / 100M per input    | 23.71 seconds            |
+| A100 80GB     | 1 GPU       | 103.833s / 100M per input    | 19.96 seconds            |
+| A100 80GB     | 8 GPUs      | 70.388s  / 500M per input    | 2.71 seconds             |
+
+*\* Dual socket system with 2x CPUs each at 64 cores / 128 threads* 
 
 ## Team members
 All team members are from RMIT.
@@ -54,7 +59,7 @@ All team members are from RMIT.
 ### Dan Dang - **nhatdongdang**
 - Core implementation in C
 - Benchmark implementation
-- CPU optimisation (AVX2/SIMD)
+- CPU optimisation (AVX2/SIMD, profiling)
 - GPU optimisation (memory, kernel impl & tuning, testing/profiling)
 - MPI optimisation
 - Code review & CI
