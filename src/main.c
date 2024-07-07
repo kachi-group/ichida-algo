@@ -25,101 +25,51 @@ char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 
                     'J', 'j', 'K', 'k', 'L', 'l', 'M', 'm', 'N', 'n', 'O', 'o', 'P', 'p', 'Q', 'q', 'R', 'r',
                     'S', 's', 'T', 't', 'U', 'u', 'V', 'v', 'W', 'w', 'X', 'x', 'Y', 'y', 'Z', 'z'};
 
-void propagate_fwd(const matrix* weights, const vector* inputs, vector* results, const vector* biases) {
-    sgemv_t_tuned(weights->data, inputs->data, results->data, weights->cols, weights->rows);
+void propagate_fwd(const matrix* weights, const float* inputs, float* results, const vector* biases) {
+    sgemv_t_tuned(weights->data, inputs, results, weights->cols, weights->rows);
     // Add biases onto results
-    vector_add_inplace(biases->len, biases->data, results->data);
+    vector_add_inplace(biases->len, biases->data, results);
 }
 
-// Basic version, too many aligned_alloc
-u8 infer(vector* input) {
-    vector* outputs[NUM_LAYERS];
-    outputs[0] = new_vec_aligned(98);
-    outputs[1] = new_vec_aligned(65);
-    outputs[2] = new_vec_aligned(50);
-    outputs[3] = new_vec_aligned(30);
-    outputs[4] = new_vec_aligned(25);
-    outputs[5] = new_vec_aligned(40);
-    outputs[6] = new_vec_aligned(52);
-
-    propagate_fwd(weights[0], input, outputs[0], biases[0]);
-    relu_inplace(outputs[0]->data, 98);
-    propagate_fwd(weights[1], outputs[0], outputs[1], biases[1]);
-    relu_inplace(outputs[1]->data, 65);
-    propagate_fwd(weights[2], outputs[1], outputs[2], biases[2]);
-    relu_inplace(outputs[2]->data, 50);
-    propagate_fwd(weights[3], outputs[2], outputs[3], biases[3]);
-    relu_inplace(outputs[3]->data, 30);
-    propagate_fwd(weights[4], outputs[3], outputs[4], biases[4]);
-    relu_inplace(outputs[4]->data, 25);
-    propagate_fwd(weights[5], outputs[4], outputs[5], biases[5]);
-    relu_inplace(outputs[5]->data, 40);
-    propagate_fwd(weights[6], outputs[5], outputs[6], biases[6]);
-    softmax_inplace(outputs[6]->data, 52);
-
-    u8 pred = argmax(outputs[6]->data, 52);
-
-    free(outputs[0]->data);
-    free(outputs[0]);
-    free(outputs[1]->data);
-    free(outputs[1]);
-    free(outputs[2]->data);
-    free(outputs[2]);
-    free(outputs[3]->data);
-    free(outputs[3]);
-    free(outputs[4]->data);
-    free(outputs[4]);
-    free(outputs[5]->data);
-    free(outputs[5]);
-    free(outputs[6]->data);
-    free(outputs[6]);
-
-    return pred;
-}
-
-// Somewhat experimental, minumum number of alligned_alloc without breaking things.
-// This code fucking sucks but its fast so uhhhh
+// Minumum number of alligned_alloc without breaking things.
+// This code f***ing sucks but its fast so uhhhh
 u8 infer_reuse_layers_thread(vector* input, matrix** weights, vector** biases) {
-    vector* outputs[2];
-    outputs[0] = new_vec_aligned(98);
-    outputs[1] = new_vec_aligned(65);
+    // Slightly larger than required for padding
+    float out0[104] __attribute__((aligned(SIMD_ALIGN))) = {0};
+    float out1[72] __attribute__((aligned(SIMD_ALIGN))) = {0};
 
-    propagate_fwd(weights[0], input, outputs[0], biases[0]);
-    relu_inplace(outputs[0]->data, 98);
-    propagate_fwd(weights[1], outputs[0], outputs[1], biases[1]);
-    relu_inplace(outputs[1]->data, 65);
+    propagate_fwd(weights[0], input->data, out0, biases[0]);
+    relu_inplace(out0, 98);
 
-    memset(outputs[0]->data, 0, 50 * sizeof(f32));
+    propagate_fwd(weights[1], out0, out1, biases[1]);
+    relu_inplace(out1, 65);
 
-    propagate_fwd(weights[2], outputs[1], outputs[0], biases[2]);
-    relu_inplace(outputs[0]->data, 50);
+    memset(out0, 0, 50 * sizeof(f32));
 
-    memset(outputs[1]->data, 0, 30 * sizeof(f32));
+    propagate_fwd(weights[2], out1, out0, biases[2]);
+    relu_inplace(out0, 50);
 
-    propagate_fwd(weights[3], outputs[0], outputs[1], biases[3]);
-    relu_inplace(outputs[1]->data, 30);
+    memset(out1, 0, 30 * sizeof(f32));
 
-    memset(outputs[0]->data, 0, 25 * sizeof(f32));
+    propagate_fwd(weights[3], out0, out1, biases[3]);
+    relu_inplace(out1, 30);
 
-    propagate_fwd(weights[4], outputs[1], outputs[0], biases[4]);
-    relu_inplace(outputs[0]->data, 25);
+    memset(out0, 0, 25 * sizeof(f32));
 
-    memset(outputs[1]->data, 0, 40 * sizeof(f32));
+    propagate_fwd(weights[4], out1, out0, biases[4]);
+    relu_inplace(out0, 25);
 
-    propagate_fwd(weights[5], outputs[0], outputs[1], biases[5]);
-    relu_inplace(outputs[1]->data, 40);
+    memset(out1, 0, 40 * sizeof(f32));
 
-    memset(outputs[0]->data, 0, 52 * sizeof(f32));
+    propagate_fwd(weights[5], out0, out1, biases[5]);
+    relu_inplace(out1, 40);
 
-    propagate_fwd(weights[6], outputs[1], outputs[0], biases[6]);
-    softmax_inplace(outputs[0]->data, 52);
+    memset(out0, 0, 52 * sizeof(f32));
 
-    u8 prediction = argmax(outputs[0]->data, 52);
+    propagate_fwd(weights[6], out1, out0, biases[6]);
+    softmax_inplace(out0, 52);
 
-    free(outputs[0]->data);
-    free(outputs[0]);
-    free(outputs[1]->data);
-    free(outputs[1]);
+    u8 prediction = argmax(out0, 52);
 
     return prediction;
 }
