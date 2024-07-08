@@ -39,7 +39,7 @@ vector* new_vec_aligned(int len) {
 }
 
 // ver. Artemis Rosman simd_intrin 2x8
-static void kernel(const float* in, const float* wg, float* rs, int start_row, int start_col, int w_width) {
+static void kernel(const f32* in, const f32* wg, f32* rs, int start_row, int start_col, int w_width) {
     // printf("Kernel at row %d col %d\n", start_row, start_col);
     __m256 res = _mm256_load_ps(&rs[start_col]);
 
@@ -54,7 +54,7 @@ static void kernel(const float* in, const float* wg, float* rs, int start_row, i
 // Ver. Artemis Rosman
 // W rows and W width is expected to be for the column major matrix, i.e. len of
 // in vec = w_rows, len of out vec = w_cols
-void sgemv_t_tuned(const float* weights, const float* inputs, float* __restrict__ results, int w_width, int w_rows) {
+void sgemv_t_tuned(const f32* weights, const f32* inputs, f32* __restrict__ results, int w_width, int w_rows) {
     // Perform mult using kernel
     for (int row = 0; row < w_rows; row += KERN_ROWS) {
         for (int col = 0; col < w_width; col += KERN_COLS) {
@@ -77,15 +77,15 @@ void relu_inplace(f32* dest, int len) {
 }
 
 // Hacky but fast and accurate for existing inputs
-static inline float fastexp(float x) {
+static inline f32 fastexp(f32 x) {
     int tmp = (int)(1512775 * x + 1072632447);
-    float result;
+    f32 result;
     memcpy(&result, &tmp, sizeof(result));
     return result;
 }
 
 void softmax_inplace(f32* dest, int len) {
-    float res = 0.0f;
+    f32 res = 0.0f;
     for (int i = 0; i < len; i++) {
         res += fastexp(dest[i]);
     }
@@ -97,7 +97,7 @@ void softmax_inplace(f32* dest, int len) {
 // Get result from output layer
 u8 argmax(f32* in, int len) {
     int idx = 0;
-    float res = in[0];
+    f32 res = in[0];
     for (int i = 0; i < len; i++) {
         if (res < in[i]) {
             res = in[i];

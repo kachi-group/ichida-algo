@@ -31,7 +31,7 @@ char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 
 
 void process_weights_str(char* line, int layer) {
     char* token;
-    float value;
+    f32 value;
     const char* delimiter = ",";
 
     token = strtok(line, delimiter);
@@ -45,7 +45,7 @@ void process_weights_str(char* line, int layer) {
 
 void process_biases_str(char* line, int layer) {
     char* token;
-    float value;
+    f32 value;
     const char* delimiter = ",";
 
     token = strtok(line, delimiter);
@@ -80,7 +80,7 @@ void read_model(const char* file_name) {
     fclose(file);
 }
 
-void read_tensor(float* out, const char* fileName) {
+void read_tensor(f32* out, const char* fileName) {
     FILE* file = fopen(fileName, "r");
     char* line = NULL;
     size_t len = 0;
@@ -91,7 +91,7 @@ void read_tensor(float* out, const char* fileName) {
     }
 
     char* token;
-    float value;
+    f32 value;
     const char* delimiter = ",";
     token = strtok(line, delimiter);
 
@@ -123,17 +123,17 @@ __device__ void propagate_fwd(matrix* weights, f32* input_layer, f32* output_lay
     matrix_add(output_layer, biases->data, biases->rows);
 }
 
-__global__ void infer(float* d_inputs, int* d_results, matrix** d_weights, matrix** d_biases, int it_per_input,
+__global__ void infer(f32* d_inputs, int* d_results, matrix** d_weights, matrix** d_biases, int it_per_input,
                       int in_num) {
 
-    __shared__ float shared_input[TENSOR_LENGTH];
-    float out1[98];
-    float out2[65];
+    __shared__ f32 shared_input[TENSOR_LENGTH];
+    f32 out1[98];
+    f32 out2[65];
 
     int num_threads = blockDim.x * gridDim.x;
     int thread_idx = (blockIdx.x * blockDim.x + threadIdx.x);
 
-    float* input = (float*)&d_inputs[in_num * TENSOR_LENGTH];
+    f32* input = (f32*)&d_inputs[in_num * TENSOR_LENGTH];
 
     if (threadIdx.x < TENSOR_LENGTH) {
         shared_input[threadIdx.x] = input[threadIdx.x];
@@ -228,7 +228,7 @@ int main(int argc, char* argv[]) {
     results = (int*)malloc((input_count) * sizeof(int));
     inputs = (f32*)malloc((input_count) * sizeof(f32) * TENSOR_LENGTH);
     cudaMalloc(&d_results, (input_count) * sizeof(int));
-    cudaMalloc(&d_inputs, (input_count) * sizeof(float) * TENSOR_LENGTH);
+    cudaMalloc(&d_inputs, (input_count) * sizeof(f32) * TENSOR_LENGTH);
     
     // Read and process inputs
     char* file_name = (char*)malloc((100) * sizeof(char));
@@ -253,7 +253,7 @@ int main(int argc, char* argv[]) {
     closedir(dir);
 
     // Move input array to GPU memory
-    cudaMemcpy(d_inputs, inputs, sizeof(float) * 225 * input_count, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_inputs, inputs, sizeof(f32) * 225 * input_count, cudaMemcpyHostToDevice);
 
 # ifdef USE_MPI
     int it_per_gpu = num_its / num_proccesses + (process_id < (num_its % num_proccesses) ? 1 : 0);
