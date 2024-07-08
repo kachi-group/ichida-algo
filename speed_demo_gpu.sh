@@ -16,12 +16,10 @@ if [ ! -f "$binary" ]; then
     exit 1
 fi
 
-start_time=$(date +%s%3N)  # Start time in milliseconds since epoch
-
+start_time=$(date +%s%3N)
 ./$binary "$weights_and_biases" "$input_tensor_dir" "$inferences"
 
-end_time=$(date +%s%3N)  # End time in milliseconds since epoch
-
+end_time=$(date +%s%3N)
 execution_time=$((end_time - start_time))
 
 if [ ! -f "results.csv" ]; then

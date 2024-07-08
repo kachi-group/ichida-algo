@@ -16,13 +16,11 @@ if [ ! -f "$binary" ]; then
     exit 1
 fi
 
-start_time=$(date +%s%N)
+start_time=$(date +%s%3N)
 ./$binary "$weights_and_biases" "$input_tensor_dir" "$inferences"
 
-end_time=$(date +%s%N)  # End time in nanoseconds
-
-execution_time_ns=$((end_time - start_time))  # Execution time in nanoseconds
-execution_time_ms=$((execution_time_ns / 1000000))  # Convert nanoseconds to milliseconds
+end_time=$(date +%s%3N)
+execution_time=$((end_time - start_time))
 
 if [ ! -f "results.csv" ]; then
     echo "[ERROR] results.csv not found!"
@@ -31,4 +29,4 @@ else
     echo "[SUCCESS] results.csv found!"
 fi
 
-echo "Execution time: $execution_time_ms ms"
+echo "Execution time: $execution_time ms"
