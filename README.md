@@ -49,9 +49,9 @@ Thes are the best runs that we have achieved **(all categories were tested on 52
 
 | Hardware Used | Parallelism | Best Run / Nr. of iterations | Throughput (time for 1B) |
 |---------------|-------------|-----------------------------:|-------------------------:|
-| Ryzen 5600x   | 1 thread    | 7.224s   / 100k per input    | 23 minutes 11.42 seconds |
+| Ryzen 5600x   | 1 thread    | 6.658s   / 100k per input    | 21 minutes 20.34 seconds |
 | Ryzen 5600x   | 12 threads  | 11.631s  / 1M per input      | 3 minutes 43.62 seconds  |
-| EPYC 7J13*    | 240 threads | 123.258s / 100M per input    | 23.71 seconds            |
+| EPYC 7J13*    | 240 threads | 112.124s / 100M per input    | 21.56 seconds            |
 | A100 80GB     | 1 GPU       | 103.833s / 100M per input    | 19.96 seconds            |
 | A100 80GB     | 8 GPUs      | 70.388s  / 500M per input    | 2.71 seconds             |
 
