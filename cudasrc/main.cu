@@ -1,32 +1,28 @@
 #include "matrix.cuh"
 #include <dirent.h>
-#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#ifdef USE_MPI
+#include <mpi.h>
+#endif
 
 #define NUM_LAYERS 7
+#define TENSOR_LENGTH 225
 
-#define CUDA_CHECK(call)                                                                                               \
-    do {                                                                                                               \
-        cudaError_t err = call;                                                                                        \
-        if (err != cudaSuccess) {                                                                                      \
-            fprintf(stderr, "CUDA error in %s (%s:%d): %s\n", __func__, __FILE__, __LINE__, cudaGetErrorString(err));  \
-            exit(EXIT_FAILURE);                                                                                        \
-        }                                                                                                              \
-    } while (0)
+#define BLOCKS 108
+#define THREADS_PER_BLOCK 1024
 
 matrix* weights[NUM_LAYERS];
 matrix* biases[NUM_LAYERS];
+f32* inputs;
+int* results;
 
-// device weights and biases;
+// Device memory
 matrix** d_weights;
 matrix** d_biases;
-
-float* inputs;
-float* d_inputs;
-int* results;
+f32* d_inputs;
 int* d_results;
 
 char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 'G', 'g', 'H', 'h', 'I', 'i',
@@ -35,7 +31,7 @@ char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 
 
 void process_weights_str(char* line, int layer) {
     char* token;
-    float value;
+    f32 value;
     const char* delimiter = ",";
 
     token = strtok(line, delimiter);
@@ -49,7 +45,7 @@ void process_weights_str(char* line, int layer) {
 
 void process_biases_str(char* line, int layer) {
     char* token;
-    float value;
+    f32 value;
     const char* delimiter = ",";
 
     token = strtok(line, delimiter);
@@ -84,53 +80,68 @@ void read_model(const char* file_name) {
     fclose(file);
 }
 
-void read_tensor(float* a, const char* fileName) {
+void read_tensor(f32* out, const char* fileName) {
     FILE* file = fopen(fileName, "r");
     char* line = NULL;
     size_t len = 0;
 
-    getline(&line, &len, file);
+    if (getline(&line, &len, file) == -1) {
+        perror("Could not read tensor file.\n");
+        exit(EXIT_FAILURE);
+    }
+
     char* token;
-    float value;
+    f32 value;
     const char* delimiter = ",";
     token = strtok(line, delimiter);
 
     for (int i = 0; i < 225; i++) {
         value = strtof(token, NULL);
-        a[i] = value;
+        out[i] = value;
         token = strtok(NULL, delimiter);
     }
     free(line);
     fclose(file);
 }
 
-__device__ void propagate_fwd(matrix* weights, float* input_layer, float* output_layer, matrix* biases) {
+int file_count(const char* dir_path) {
+    struct dirent* entry;
+    DIR* dir = opendir(dir_path);
+
+    // Count inputs
+    int num_inputs = 0;
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_REG)
+            num_inputs++;
+    }
+
+    return num_inputs;
+}
+
+__device__ void propagate_fwd(matrix* weights, f32* input_layer, f32* output_layer, matrix* biases) {
     matrix_mul(weights->data, input_layer, output_layer, weights->rows, weights->cols);
     matrix_add(output_layer, biases->data, biases->rows);
 }
 
-#define BLOCKS 108
-#define THREADS_PER_BLOCK 1024
-
-__global__ void infer(float* d_inputs, int* d_results, matrix** d_weights, matrix** d_biases, int it_per_input,
+__global__ void infer(f32* d_inputs, int* d_results, matrix** d_weights, matrix** d_biases, int it_per_input,
                       int in_num) {
 
-    __shared__ float sharedInput[225];
-    float out1[98];
-    float out2[65];
+    __shared__ f32 shared_input[TENSOR_LENGTH];
+    f32 out1[98];
+    f32 out2[65];
 
     int num_threads = blockDim.x * gridDim.x;
     int thread_idx = (blockIdx.x * blockDim.x + threadIdx.x);
 
-    float* input = (float*)&d_inputs[in_num * 225];
+    f32* input = (f32*)&d_inputs[in_num * TENSOR_LENGTH];
 
-    if (threadIdx.x < 225) {
-        sharedInput[threadIdx.x] = input[threadIdx.x];
+    if (threadIdx.x < TENSOR_LENGTH) {
+        shared_input[threadIdx.x] = input[threadIdx.x];
     }
     __syncthreads();
 
     for (int i = thread_idx; i < it_per_input; i += num_threads) {
-        propagate_fwd(d_weights[0], sharedInput, out1, d_biases[0]);
+        propagate_fwd(d_weights[0], shared_input, out1, d_biases[0]);
         relu(out1, 98);
 
         propagate_fwd(d_weights[1], out1, out2, d_biases[1]);
@@ -154,23 +165,30 @@ __global__ void infer(float* d_inputs, int* d_results, matrix** d_weights, matri
         d_results[in_num] = argmax(out1, 52);
     }
 }
+
 int main(int argc, char* argv[]) {
-    MPI_Init(&argc, &argv);
-    int totalProcess, processId;
-    MPI_Comm_size(MPI_COMM_WORLD, &totalProcess); // size
-    MPI_Comm_rank(MPI_COMM_WORLD, &processId);    // gpuid
 
     if (argc < 4) {
         printf("Not enough arguments. Usage: speed_cpu <path_to_model.txt> <tensors_dir/> <number_of_inferences>\n");
+#ifdef USE_MPI
         MPI_Finalize();
+#endif
         return EXIT_FAILURE;
     }
 
-    // get no of gpu
-    int deviceCount;
-    cudaGetDeviceCount(&deviceCount);
-    int deviceId = processId % deviceCount;
-    cudaSetDevice(deviceId);
+#ifdef USE_MPI
+    // Initialise GPU environment
+    MPI_Init(&argc, &argv);
+    int num_proccesses, process_id;
+    MPI_Comm_size(MPI_COMM_WORLD, &num_proccesses);
+    MPI_Comm_rank(MPI_COMM_WORLD, &process_id);
+
+    int device_count;
+    cudaGetDeviceCount(&device_count);
+    int device_id = process_id % device_count;
+    cudaSetDevice(device_id);
+    printf("MPI device id: %d\n", device_id);
+#endif
 
     // Start timing
     struct timeval stop, start;
@@ -193,85 +211,92 @@ int main(int argc, char* argv[]) {
     biases[6] = new_matrix(52, 1);
     read_model(argv[1]);
 
-    CUDA_CHECK(cudaMalloc(&d_weights, NUM_LAYERS * sizeof(matrix*)));
-    CUDA_CHECK(cudaMalloc(&d_biases, NUM_LAYERS * sizeof(matrix*)));
+    // Copy model to GPU
+    cudaMalloc(&d_weights, NUM_LAYERS * sizeof(matrix*));
+    cudaMalloc(&d_biases, NUM_LAYERS * sizeof(matrix*));
     for (int i = 0; i < NUM_LAYERS; i++) {
-        matrix* a = copy_to_device(weights[i]);
-        matrix* b = copy_to_device(biases[i]);
-        CUDA_CHECK(cudaMemcpy(&(d_weights[i]), &a, sizeof(matrix*), cudaMemcpyHostToDevice));
-        CUDA_CHECK(cudaMemcpy(&(d_biases[i]), &b, sizeof(matrix*), cudaMemcpyHostToDevice));
+        matrix* layer_weight = copy_to_device(weights[i]);
+        matrix* layer_bias = copy_to_device(biases[i]);
+        cudaMemcpy(&(d_weights[i]), &layer_weight, sizeof(matrix*), cudaMemcpyHostToDevice);
+        cudaMemcpy(&(d_biases[i]), &layer_bias, sizeof(matrix*), cudaMemcpyHostToDevice);
     }
 
     const char* directory_path = argv[2];
-    struct dirent* entry;
-    DIR* dir = opendir(directory_path);
+    int input_count = file_count(directory_path);
+    int num_its = atoi(argv[3]);
+
+    results = (int*)malloc((input_count) * sizeof(int));
+    inputs = (f32*)malloc((input_count) * sizeof(f32) * TENSOR_LENGTH);
+    cudaMalloc(&d_results, (input_count) * sizeof(int));
+    cudaMalloc(&d_inputs, (input_count) * sizeof(f32) * TENSOR_LENGTH);
 
     // Read and process inputs
     char* file_name = (char*)malloc((100) * sizeof(char));
     char* file_num_str = (char*)malloc((100) * sizeof(char));
 
-    int file_num;
-    int input_count = 0;
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            input_count++;
-        }
-    }
-
-    results = (int*)malloc((input_count) * sizeof(int));
-    inputs = (float*)malloc((input_count) * sizeof(float) * 225);
-
-    cudaMalloc(&d_results, (input_count) * sizeof(int));
-    cudaMalloc(&d_inputs, (input_count) * sizeof(float) * 225);
-
+    struct dirent* entry;
+    DIR* dir = opendir(directory_path);
     dir = opendir(directory_path);
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
             strcpy(file_num_str, entry->d_name);
             file_num_str[strlen(entry->d_name) - 7] = '\0';
-            file_num = atoi(entry->d_name);
+            int file_num = atoi(entry->d_name);
             strcpy(file_name, directory_path);
             strcat(file_name, "/");
             strcat(file_name, entry->d_name);
-            read_tensor((float*)&inputs[(file_num - 1) * 225], file_name);
+            read_tensor((f32*)&inputs[(file_num - 1) * 225], file_name);
         }
     }
-
     free(file_name);
     free(file_num_str);
     closedir(dir);
 
-    cudaMemcpy(d_inputs, inputs, sizeof(float) * 225 * input_count, cudaMemcpyHostToDevice);
+    // Move input array to GPU memory
+    cudaMemcpy(d_inputs, inputs, sizeof(f32) * 225 * input_count, cudaMemcpyHostToDevice);
 
-    int it_num = atoi(argv[3]);
-    int gpu_it_num = it_num / totalProcess + (processId < (it_num % totalProcess) ? 1 : 0);
+#ifdef USE_MPI
+    int it_per_gpu = num_its / num_proccesses + (process_id < (num_its % num_proccesses) ? 1 : 0);
+#else
+    int it_per_gpu = num_its;
+#endif
 
-    struct timeval stop1, start1;
-    gettimeofday(&start1, NULL);
+    struct timeval stop_inf, start_inf;
+    gettimeofday(&start_inf, NULL);
 
     cudaDeviceSynchronize();
     for (int i = 0; i < input_count; i++) {
-        infer<<<BLOCKS, THREADS_PER_BLOCK>>>(d_inputs, d_results, d_weights, d_biases, gpu_it_num, i);
-        CUDA_CHECK(cudaGetLastError());
+        infer<<<BLOCKS, THREADS_PER_BLOCK>>>(d_inputs, d_results, d_weights, d_biases, it_per_gpu, i);
     }
     cudaDeviceSynchronize();
 
-    if (processId == 0) {
+#ifdef USE_MPI
+    if (process_id == 0) {
+#endif
         cudaMemcpy(results, d_results, (input_count) * (sizeof(int)), cudaMemcpyDeviceToHost);
-        gettimeofday(&stop1, NULL);
-        printf("Process %d - Inference: %lu us\n", processId,
-               (stop1.tv_sec - start1.tv_sec) * 1000000 + stop1.tv_usec - start1.tv_usec);
+        gettimeofday(&stop_inf, NULL);
+#ifdef USE_MPI
+        printf("Process %d - Inference: %lu us\n", process_id,
+               (stop_inf.tv_sec - start_inf.tv_sec) * 1000000 + stop_inf.tv_usec - start_inf.tv_usec);
+#endif
+
+        // Print output to csv
         FILE* csv_file = fopen("results.csv", "w+");
         fprintf(csv_file, "image_number, guess\n");
         for (int i = 0; i < input_count; i++) {
             fprintf(csv_file, "%d, %c\n", i + 1, letters[results[i]]);
         }
         fclose(csv_file);
+#ifdef USE_MPI
     }
+#endif
+
     // Time taken
     gettimeofday(&stop, NULL);
-    printf("Process %d - Total: %lu us\n", processId,
-           (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
+    printf("Total: %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
+
+#ifdef USE_MPI
     MPI_Finalize();
+#endif
     return EXIT_SUCCESS;
 }

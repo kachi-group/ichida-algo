@@ -25,7 +25,7 @@ char letters[52] = {'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f', 
                     'J', 'j', 'K', 'k', 'L', 'l', 'M', 'm', 'N', 'n', 'O', 'o', 'P', 'p', 'Q', 'q', 'R', 'r',
                     'S', 's', 'T', 't', 'U', 'u', 'V', 'v', 'W', 'w', 'X', 'x', 'Y', 'y', 'Z', 'z'};
 
-void propagate_fwd(const matrix* weights, const float* inputs, float* results, const vector* biases) {
+void propagate_fwd(const matrix* weights, const f32* inputs, f32* results, const vector* biases) {
     sgemv_t_tuned(weights->data, inputs, results, weights->cols, weights->rows);
     // Add biases onto results
     vector_add_inplace(biases->len, biases->data, results);
@@ -35,8 +35,8 @@ void propagate_fwd(const matrix* weights, const float* inputs, float* results, c
 // This code f***ing sucks but its fast so uhhhh
 u8 infer_reuse_layers_thread(vector* input, matrix** weights, vector** biases) {
     // Slightly larger than required for padding
-    float out0[104] __attribute__((aligned(SIMD_ALIGN))) = {0};
-    float out1[72] __attribute__((aligned(SIMD_ALIGN))) = {0};
+    f32 out0[104] __attribute__((aligned(SIMD_ALIGN))) = {0};
+    f32 out1[72] __attribute__((aligned(SIMD_ALIGN))) = {0};
 
     propagate_fwd(weights[0], input->data, out0, biases[0]);
     relu_inplace(out0, 98);

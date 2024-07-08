@@ -20,7 +20,7 @@ int file_count(const char* dir_path) {
 
 void process_weights_str(matrix** weights, char* line, int layer) {
     char* token;
-    float value;
+    f32 value;
     const char* delimiter = ",";
 
     token = strtok(line, delimiter);
@@ -34,7 +34,7 @@ void process_weights_str(matrix** weights, char* line, int layer) {
 
 void process_biases_str(vector** biases, char* line, int layer) {
     char* token;
-    float value;
+    f32 value;
     const char* delimiter = ",";
 
     token = strtok(line, delimiter);
@@ -74,9 +74,13 @@ void read_tensor(f32* a, const char* file_name) {
     char* line = NULL;
     size_t len = 0;
 
-    getline(&line, &len, file);
+    if (getline(&line, &len, file) == -1) {
+        perror("Could not read tensor file. Exiting.");
+        exit(EXIT_FAILURE);
+    }
+
     char* token;
-    float value;
+    f32 value;
     const char* delimiter = ",";
     token = strtok(line, delimiter);
 
