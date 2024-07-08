@@ -1,7 +1,7 @@
 .PHONY: all clean build run_cpu run_gpu test_cpu test_gpu bench stat
 
 # Default iterations
-iterations ?= 1000000
+iterations ?= 1000
 
 all: build
 
