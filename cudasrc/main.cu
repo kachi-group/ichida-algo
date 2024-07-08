@@ -229,7 +229,7 @@ int main(int argc, char* argv[]) {
     inputs = (f32*)malloc((input_count) * sizeof(f32) * TENSOR_LENGTH);
     cudaMalloc(&d_results, (input_count) * sizeof(int));
     cudaMalloc(&d_inputs, (input_count) * sizeof(f32) * TENSOR_LENGTH);
-    
+
     // Read and process inputs
     char* file_name = (char*)malloc((100) * sizeof(char));
     char* file_num_str = (char*)malloc((100) * sizeof(char));
@@ -255,9 +255,9 @@ int main(int argc, char* argv[]) {
     // Move input array to GPU memory
     cudaMemcpy(d_inputs, inputs, sizeof(f32) * 225 * input_count, cudaMemcpyHostToDevice);
 
-# ifdef USE_MPI
+#ifdef USE_MPI
     int it_per_gpu = num_its / num_proccesses + (process_id < (num_its % num_proccesses) ? 1 : 0);
-#else 
+#else
     int it_per_gpu = num_its;
 #endif
 
@@ -293,8 +293,7 @@ int main(int argc, char* argv[]) {
 
     // Time taken
     gettimeofday(&stop, NULL);
-    printf("Total: %lu us\n",
-           (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
+    printf("Total: %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
 
 #ifdef USE_MPI
     MPI_Finalize();

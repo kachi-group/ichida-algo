@@ -77,7 +77,7 @@ void read_tensor(f32* a, const char* file_name) {
     if (getline(&line, &len, file) == -1) {
         perror("Could not read tensor file. Exiting.");
         exit(EXIT_FAILURE);
-    } 
+    }
 
     char* token;
     f32 value;

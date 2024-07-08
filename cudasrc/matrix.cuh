@@ -8,7 +8,7 @@ typedef struct {
     f32* data; // array
 } matrix;
 
- __host__ __device__ matrix* new_matrix(int rows, int cols);
+__host__ __device__ matrix* new_matrix(int rows, int cols);
 
 matrix* copy_to_device(matrix* h_mat);
 
