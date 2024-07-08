@@ -34,6 +34,9 @@ To compile and run with a MPI (multi-gpu) setup:
 - `make`
 - Run with the provided script: `./speed_demo_gpu.sh ./weights_and_biases.txt ./tensors <iterations_per_input>`
 
+> [!IMPORTANT]
+> We've found that running MPI on a large number of devices incurs a significant ~6s overhead. In order to minimise the effect of this overhead when measuring, we recommend running a large number of inferences per input (500M to 1B per input on 8 GPUs).
+
 ## Implementation details
 - The CPU matmul kernel is written using SIMD intrinsics, entirely in C! It makes heavy use of memory alignment, cache locality with a transposition step,
 and is quite fast. In fact, as far as we're aware, it beats the inline asm version provided by `cblas` by a noticeable margin for this usecase!
