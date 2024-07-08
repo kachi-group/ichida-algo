@@ -20,7 +20,19 @@ We decided to go down this path because it sounded like some high risk, high rew
 optimisation & GPU programming, so it has been a lot of active learning on the job!
 
 ## Installation
-TODO
+In order to correctly run the code, please ensure that you have an x86_64 CPU if you want to test the CPU implementation (as well as OpenMP for multithreading), and a CUDA compatible GPU to test the GPU implementation (as well as the appropriate version of the CUDA toolkit). Please ensure that if you are using multiple GPUs you have an MPI implementation installed (we have verified OpenMPI as working).
+
+To compile and run on CPU (multithreaded):
+- `make`
+- Run with the provided script: `./speed_demo_cpu.sh ./weights_and_biases.txt ./tensors <iterations_per_input>`
+
+To compile and run with a non-MPI setup:
+- `make build_gpu`
+- Run with `./speed_gpu ./weights_and_biases.txt ./tensors <iterations_per_input>`
+
+To compile and run with a MPI (multi-gpu) setup:
+- `make`
+- Run with the provided script: `./speed_demo_gpu.sh ./weights_and_biases.txt ./tensors <iterations_per_input>`
 
 ## Implementation details
 - The CPU matmul kernel is written using SIMD intrinsics, entirely in C! It makes heavy use of memory alignment, cache locality with a transposition step,
@@ -49,7 +61,7 @@ Thes are the best runs that we have achieved **(all categories were tested on 52
 All team members are from RMIT.
 ### Artemis Rosman - **rozukke**
 - Project management
-- CPU optimisation (AVX2/SIMD, kernel, asm, memory, multithreading, testing/profiling & tuning)
+- CPU optimisation (AVX2/SIMD, kernel, memory, multithreading, testing/profiling & tuning)
 - GPU optimisation (monolithic kernel design & work division, small tweaks)
 - MPI optimisation (work division)
 - Code rewrites & cleanup, code review/maintenance
@@ -59,15 +71,15 @@ All team members are from RMIT.
 ### Dan Dang - **nhatdongdang**
 - Core implementation in C
 - Benchmark implementation
-- CPU optimisation (AVX2/SIMD, profiling)
-- GPU optimisation (memory, kernel impl & tuning, testing/profiling)
+- CPU optimisation (AVX2/SIMD, testing & tuning)
+- GPU optimisation (memory, kernel implementation, testing/profiling & tuning)
 - MPI optimisation
-- Code review & CI
+- Code review & CI pipeline
 - A lot of textbook reading
 
 ### Johnathan Chan - **Jinxto**
 - Core implementation in CUDA
-- Core MPI implementation & optimisation
-- Builds & CMake
+- Core MPI implementation & optimisation (GPU detection)
+- Builds & CMake setup
 - Teamwork :D
 - A lot of textbook reading
