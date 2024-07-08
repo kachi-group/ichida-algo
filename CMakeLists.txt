@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ichida-algo LANGUAGES C CUDA)
+project(ichida-algo LANGUAGES C)
 
 set(CMAKE_C_FLAGS "-O3 -march=native -ffast-math -funroll-loops -fopenmp -Wall -Wextra -Wpedantic")
 set(CMAKE_C_STANDARD 11)
