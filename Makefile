@@ -15,7 +15,7 @@ build: clean
 	cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 	$(MAKE) -C build
 	cp -u build/speed_cpu ./
-	cp -u build/speed_gpu ./
+	if [ -f build/speed_gpu ]; then cp -u build/speed_gpu ./; fi
 
 run_cpu: build
 	./speed_cpu ./weights_and_biases.txt ./tensors $(iterations)
