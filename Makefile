@@ -1,37 +1,36 @@
-.PHONY: all test clean run build run_test
+.PHONY: all clean build run_cpu run_gpu test_cpu test_gpu bench stat
 
-all: rebuild
+# Default iterations
+iterations ?= 1000000
+
+all: build
 
 clean:
 	rm -f test/results.csv
 	rm -f results.csv
 	rm -rf build
-	rm -f speed_cpu
+	rm -f speed_cpu speed_gpu
 
 build: clean
-	cmake -Bbuild
-	$(MAKE) -C ./build
-	mv ./build/speed_cpu ./
-    
-rebuild:
-	$(MAKE) -C ./build
-	mv ./build/speed_cpu ./
+	cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+	$(MAKE) -C build
+	cp -u build/speed_cpu ./
+	cp -u build/speed_gpu ./
 
-run: build
-	./speed_demo_cpu.sh ./weights_and_biases.txt ./tensors
+run_cpu: build
+	./speed_cpu ./weights_and_biases.txt ./tensors $(iterations)
 
-run_test: build
-	./speed_cpu ./weights_and_biases.txt ./tensors
+run_gpu: build
+	n_gpus=$(shell nvidia-smi --query-gpu=name --format=csv,noheader | wc -l); \
+	mpirun -np $$n_gpus ./speed_gpu ./weights_and_biases.txt ./tensors $(iterations)
 
-test: build
-	./speed_cpu ./weights_and_biases.txt ./tensors 1
+test_cpu: build
+	./speed_cpu ./weights_and_biases.txt ./tensors $(iterations)
 	mv ./results.csv ./test
 	python3 ./test/verify_csv.py
 
-bench: build
-	./build/benchmark
-
-stat: build
-	python3 ./benchmark/stat.py
-
-
+test_gpu: build
+	n_gpus=$(shell nvidia-smi --query-gpu=name --format=csv,noheader | wc -l); \
+	mpirun -np $$n_gpus ./speed_gpu ./weights_and_biases.txt ./tensors $(iterations)
+	mv ./results.csv ./test
+	python3 ./test/verify_csv.py
