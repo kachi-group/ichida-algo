@@ -17,7 +17,8 @@ if [ ! -f "$binary" ]; then
 fi
 
 start_time=$(date +%s%3N)
-./$binary "$weights_and_biases" "$input_tensor_dir" "$inferences"
+n_gpus=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l);
+mpirun -np $n_gpus ./$binary "$weights_and_biases" "$input_tensor_dir" "$inferences"
 
 end_time=$(date +%s%3N)
 execution_time=$((end_time - start_time))
