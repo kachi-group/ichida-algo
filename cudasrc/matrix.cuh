@@ -1,5 +1,7 @@
 #pragma once
 
+typedef float f32;
+
 typedef struct {
     int rows;
     int cols;
