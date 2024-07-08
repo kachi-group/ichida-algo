@@ -1,30 +1,36 @@
 cmake_minimum_required(VERSION 3.16)
 
-# Set the project name
-project(ichida-algo)
+project(ichida-algo LANGUAGES C CXX)
 
 set(CMAKE_C_FLAGS "-O3 -march=native -ffast-math -funroll-loops -fopenmp -Wall -Wextra")
-
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED True)
-# set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
-set(SRC_DIR src)
 set(INC_DIR include)
-set(LIB_DIR lib)
-set(TEST_DIR test)
-set(BENCHMARK_DIR benchmark)
+set(SRC_DIR src)
+set(CUDA_SRC_DIR cudasrc)
 
-# Source files
+include_directories(${INC_DIR})
+
 file(GLOB_RECURSE SOURCE_FILES ${SRC_DIR}/*.c)
 
-include_directories(include)
-
 add_executable(speed_cpu ${SOURCE_FILES})
-# add_executable(benchmark ${SRC_DIR}/matrix.c ${BENCHMARK_DIR}/benchmark.c)
+target_link_libraries(speed_cpu m pthread gomp)
 
-target_link_libraries(speed_cpu m pthread)
-# target_link_libraries(benchmark m)
+find_package(CUDA)
 
+if(CUDA_FOUND)
+    enable_language(CUDA)
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -O3 --use_fast_math -Xcompiler -march=native -unroll-aggressive -arch=sm_80")
+    find_package(MPI REQUIRED)
+    include_directories(${MPI_INCLUDE_PATH})
+    file(GLOB_RECURSE CUDA_SOURCE_FILES ${CUDA_SRC_DIR}/*.cu)
+    add_executable(speed_gpu ${CUDA_SOURCE_FILES})
+    set_target_properties(speed_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+    target_link_libraries(speed_gpu m ${MPI_LIBRARIES})
+else()
+    message(STATUS "CUDA not found, only CPU version will be built.")
+endif()
 
 
