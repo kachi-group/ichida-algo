@@ -1,5 +1,4 @@
 #include "matrix.cuh"
-#include "util.cuh"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +21,7 @@ __global__ void alloc(matrix* res, float* data, int rows, int cols) {
 
 matrix* new_matrix_d(int rows, int cols) {
     matrix* res;
-    CUDA_CHECK(cudaMalloc(&res, sizeof(matrix)));
+    cudaMalloc(&res, sizeof(matrix));
     float* data;
     cudaMalloc(&data, rows * cols * sizeof(float));
     alloc<<<1, 1>>>(res, data, rows, cols);
@@ -31,7 +30,7 @@ matrix* new_matrix_d(int rows, int cols) {
 
 matrix* copy_to_device(matrix* h_mat) {
     matrix* res;
-    CUDA_CHECK(cudaMalloc(&res, sizeof(matrix)));
+    cudaMalloc(&res, sizeof(matrix));
     float* data;
     cudaMalloc(&data, h_mat->rows * h_mat->cols * sizeof(float));
     cudaMemcpy(data, h_mat->data, h_mat->rows * h_mat->cols * sizeof(float), cudaMemcpyHostToDevice);
@@ -76,14 +75,6 @@ __device__ void relu(float* a, int rows) {
     for (int i = 0; i < rows; i++) {
         a[i] = (a[i] > 0) ? a[i] : 0;
     }
-}
-
-// Hacky but fast and accurate for existing inputs
-static __device__ inline float fastexp(float x) {
-    int tmp = (int)(1512775 * x + 1072632447);
-    float result;
-    memcpy(&result, &tmp, sizeof(result));
-    return result;
 }
 
 __device__ void softmax(float* a, int rows) {
