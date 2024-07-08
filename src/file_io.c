@@ -74,7 +74,11 @@ void read_tensor(f32* a, const char* file_name) {
     char* line = NULL;
     size_t len = 0;
 
-    getline(&line, &len, file);
+    if (getline(&line, &len, file) == -1) {
+        perror("Could not read tensor file. Exiting.");
+        exit(EXIT_FAILURE);
+    } 
+    
     char* token;
     float value;
     const char* delimiter = ",";
