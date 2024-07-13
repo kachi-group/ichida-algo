@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build status](https://github.com/kachi-group/ichida-algo/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/kachi-group/ichida-algo/actions/workflows/ci.yml)
 
-This is the submission repository for **StartHack 2024 (June)**. Our team chose Track 1 - HPC, which was hosted by QDX and involved writing a massively parallel implementation of neural network inference on a small demo model.
+This repository contains the [winning submission](https://devpost.com/software/ichida-algo) for **StartHack 2024 (June)** 🎉🎊🥳. Our team chose Track 1 - High Performance Computing, which was hosted by QDX and involved writing a massively parallel implementation of neural network inference on a small demo model.
 
 **Development involved:**
 - Optimising for the compiler (**cache** locality, throughput)
@@ -17,7 +17,7 @@ This is the submission repository for **StartHack 2024 (June)**. Our team chose 
 - **MPI** (Message-Passing Interface) for multi-GPU utilisation
 
 We decided to go down this path because it sounded like some high risk, high reward excitement. Before starting out, we didn't know almost anything about low level
-optimisation & GPU programming, so it has been a lot of active learning on the job!
+optimisation & GPU programming, so it turned out to be a lot of active learning on the job! We would like to once again thank QDX for the opportunity to participate in this unique challenge and for offering us a chace to impress them.
 
 ## Installation
 In order to correctly run the code, please ensure that you have an x86_64 CPU if you want to test the CPU implementation (as well as OpenMP for multithreading), and a CUDA compatible GPU to test the GPU implementation (as well as the appropriate version of the CUDA toolkit). Please ensure that if you are using multiple GPUs you have an MPI implementation installed (we have verified OpenMPI as working).
